@@ -5,9 +5,18 @@ from django.contrib.auth.models import User
 
 # For logging staff hours
 class Logger(models.Model):
+    LOG_TYPE_CHOICES = [
+        ('IN', 'Login'),
+        ('OUT', 'Logout'),
+    ]
+    
     first_name = models.CharField(max_length=200)
     last_name = models.CharField(max_length=200)
+    log_type = models.CharField(max_length=3, choices=LOG_TYPE_CHOICES, default='IN')
     time_log = models.TimeField(help_text="Enter the exact time! (Ex. 15:26)")
+    
+    def __str__(self)-> str:
+        return f'{self.first_name} {self.last_name} - {self.log_type} at {self.time_log}'
     
 
 # For user comments/reviews
@@ -18,15 +27,15 @@ class UserComments(models.Model):
     
 
 class Category(models.Model):
-    slug = models.SlugField()
-    title = models.CharField(max_length=255, db_index=True)
+    slug = models.SlugField(unique=True)
+    title = models.CharField(max_length=255, unique=True, db_index=True)
     
     def __str__(self)-> str:
         return self.title
 
 
-class Menuitem(models.Model):
-    title = models.CharField(max_length=255, db_index=True)
+class MenuItem(models.Model):
+    title = models.CharField(max_length=255, unique=True, db_index=True)
     price = models.DecimalField(max_digits=6, decimal_places=2, db_index=True)
     featured = models.BooleanField(db_index=True, default=False)
     category = models.ForeignKey(Category, on_delete=models.PROTECT)
@@ -49,7 +58,7 @@ class Booking(models.Model):
 # For each user's cart
 class Cart(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    menuitem = models.ForeignKey(Menuitem, on_delete=models.CASCADE)
+    menuitem = models.ForeignKey(MenuItem, on_delete=models.CASCADE)
     quantity = models.SmallIntegerField(default=1)
     
     # These @properties behave like fields when you access them, but they're not actual database fields, and their values are calculated on-demand.
@@ -74,7 +83,7 @@ class Order(models.Model):
     status = models.BooleanField(db_index=True, default=False)
     ready_for_delivery = models.BooleanField(db_index=True, default=False)
     total = models.DecimalField(max_digits=6, decimal_places=2)
-    date = models.DateField(db_index=True)
+    time = models.DateField(db_index=True)
     
     def __str__(self)-> str:
         delivery_crew_username = self.delivery_crew.username if self.delivery_crew else "Not assigned"
@@ -89,7 +98,7 @@ class Order(models.Model):
     
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
-    menuitem = models.ForeignKey(Menuitem, on_delete=models.CASCADE)
+    menuitem = models.ForeignKey(MenuItem, on_delete=models.CASCADE)
     quantity = models.SmallIntegerField()
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)
     price = models.DecimalField(max_digits=6, decimal_places=2)
