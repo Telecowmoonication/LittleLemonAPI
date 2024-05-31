@@ -9,6 +9,7 @@ djangorestframework = "*"
 mysqlclient = "*"
 django-filter = "*"
 djoser = "*"
+bleach = "*"
 
 [dev-packages]
 
