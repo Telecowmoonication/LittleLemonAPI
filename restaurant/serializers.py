@@ -11,11 +11,47 @@ import re
 import bleach
 import datetime
 
-class LoggerSerializer(serializers.ModelSerializer):
+# Serializes User model for use with API, provides link to user instance
+class UserSerializer(serializers.HyperlinkedModelSerializer):
+    
+    class Meta:
+        model = User
+        fields = ['url', 'username', 'email', 'groups']
+
+
+# Serializes and validates the user registration information
+class UserRegSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
+    password2 = serializers.CharField(write_only=True, required=True)
+    
+    class Meta:
+        model = User
+        fields = ['username', 'password', 'password2', 'email', 'first_name', 'last_name']
+        
+    def validate_pass(self, attrs):
+        if attrs['password'] != attrs['password2']:
+            raise serializers.ValidationError({"password": "Password fields did not match."})
+        return attrs
+    
+    def create(self, validated_data):
+        validated_data.pop('password2')
+        user = User.objects.create(
+            username = validated_data['username'],
+            email = validated_data['email'],
+            first_name = validated_data.get('first_name', ''),
+            last_name = validated_data.get('last_name', '')
+        )
+        user.set_password(validated_data['password'])
+        user.save()
+        return user
+
+
+# Serializes and validates employee hours worked
+class LoggerSerializer(serializers.HyperlinkedModelSerializer):
     
     class Meta:
         model = Logger
-        fields = ['id', 'first_name', 'last_name', 'time_log']
+        fields = ['url', 'id', 'first_name', 'last_name', 'time_log']
         read_only_fields = ['id']
         
     def validate_first_name(self, value):
@@ -53,11 +89,11 @@ class LoggerSerializer(serializers.ModelSerializer):
         return data
 
 
-class UserCommentsSerializer(serializers.ModelSerializer):
+class UserCommentsSerializer(serializers.HyperlinkedModelSerializer):
     
     class Meta:
         model = UserComments
-        fields = ['id', 'first_name', 'last_name', 'comment']
+        fields = ['url', 'id', 'first_name', 'last_name', 'comment']
         read_only_fields = ['id']
         
     def validate_first_name(self, value):
@@ -76,11 +112,11 @@ class UserCommentsSerializer(serializers.ModelSerializer):
         return bleach.clean(value, tags=[], strip=True)
 
 
-class CategorySerializer(serializers.ModelSerializer):
+class CategorySerializer(serializers.HyperlinkedModelSerializer):
     
     class Meta:
         model = Category
-        fields = ['id', 'slug', 'title']
+        fields = ['url', 'id', 'slug', 'title']
         read_only_fields = ['id']
         extra_kwargs = {
             'slug': {
@@ -122,7 +158,7 @@ class CategorySerializer(serializers.ModelSerializer):
         return bleach.clean(value, tags=[], strip=True)
     
 
-class MenuItemSerializer(serializers.ModelSerializer):
+class MenuItemSerializer(serializers.HyperlinkedModelSerializer):
     stock = serializers.IntegerField(source='inventory')
     price_after_tax = serializers.SerializerMethodField(method_name='calculate_tax')
     category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
@@ -130,15 +166,15 @@ class MenuItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = MenuItem
-        fields = ['id', 'title', 'price', 'price_after_tax', 'category', 'featured', 'stock']
+        fields = ['url', 'id', 'title', 'price', 'price_after_tax', 'category', 'featured', 'stock']
         read_only_fields = ['id']
         extra_kwargs = {
             'price': {'min_value': Decimal('0.01'), 'error_messages': {'min_value': 'Price must be greater than zero.'}},
             'stock': {'min_value': 0, 'error_messages': {'min_value': 'Stock must be greater than zero.'}},
             'title': {
-                'validators': {
+                'validators': [
                     UniqueValidator(queryset=MenuItem.objects.all())
-                }
+                ]
             }
         }
         
@@ -148,11 +184,11 @@ class MenuItemSerializer(serializers.ModelSerializer):
         return bleach.clean(value, tags=[], strip=True)
     
     
-class BookingSerializer(serializers.ModelSerializer):
+class BookingSerializer(serializers.HyperlinkedModelSerializer):
     
     class Meta:
         model = Booking
-        fields = ['id', 'name', 'no_of_guests', 'booking_date']
+        fields = ['url', 'id', 'name', 'no_of_guests', 'booking_date']
         read_only_fields = ['id']
         
     def validate_no_of_guests(self, value):
@@ -168,7 +204,7 @@ class BookingSerializer(serializers.ModelSerializer):
             return value
         
 
-class CartSerializer(serializers.ModelSerializer):
+class CartSerializer(serializers.HyperlinkedModelSerializer):
     user_username = serializers.ReadOnlyField(source='user.username') # Gets username from User model
     menuitem_title = serializers.CharField(write_only=True) # Allows for the input of a menuitem by a user
     unit_price = serializers.ReadOnlyField() # Shows but does not allow editing/input
@@ -176,7 +212,7 @@ class CartSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Cart
-        fields = ['id', 'user_username', 'menuitem_title', 'quantity', 'unit_price', 'price']
+        fields = ['url', 'id', 'user_username', 'menuitem_title', 'quantity', 'unit_price', 'price']
         read_only_fields = ['id', 'user_username', 'unit_price', 'price']
         extra_kwargs = {
             'quantity': {'min_value': 1, 'error_messages': {'min_value': 'Quantity must be greater than zero.'}},
@@ -224,14 +260,14 @@ class CartSerializer(serializers.ModelSerializer):
         return representation
     
 
-class OrderItemSerializer(serializers.ModelSerializer):
+class OrderItemSerializer(serializers.HyperlinkedModelSerializer):
     menuitem_title = serializers.ReadOnlyField(source='menuitem.title')
     menuitem_price = serializers.ReadOnlyField(source='menuitem.price')
     total_price = serializers.SerializerMethodField()
     
     class Meta:
         model = OrderItem
-        fields = ['id', 'order', 'menuitem', 'menuitem_title', 'menuitem_price', 'quantity', 'unit_price', 'total_price']
+        fields = ['url', 'id', 'order', 'menuitem', 'menuitem_title', 'menuitem_price', 'quantity', 'unit_price', 'total_price']
         read_only_fields = ['id', 'order', 'menuitem_title', 'menuitem_price', 'quantity', 'unit_price', 'total_price']
         extra_kwargs = {
             'quantity': {'min_value': 1, 'error_messages': {'min_value': 'Quantity must be at least 1.'}},
@@ -252,7 +288,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
         return data
     
 
-class OrderSerializer(serializers.ModelSerializer):
+class OrderSerializer(serializers.HyperlinkedModelSerializer):
     # For each Order instance being serialized, the serializer should include a list of all related OrderItem instances serialized by OrderItemSerializer
     order_items = OrderItemSerializer(source='orderitem_set', many=True, read_only=True)
     user_username = serializers.ReadOnlyField(source='user.username')
@@ -262,7 +298,7 @@ class OrderSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Order
-        fields = ['id', 'user', 'user_username', 'delivery_crew', 'delivery_crew_username', 'status', 'ready_for_delivery', 'total', 'time', 'order_items', 'total_calculated']
+        fields = ['url', 'id', 'user', 'user_username', 'delivery_crew', 'delivery_crew_username', 'status', 'ready_for_delivery', 'total', 'time', 'order_items', 'total_calculated']
         read_only_fields = ['id', 'user', 'user_username', 'total_calculated', 'order_items']
         extra_kwargs = {
             'total': {'min_value': Decimal('0.01'), 'error_messages':{'min_value': 'Total must be greater than $0.00.'}},
@@ -310,30 +346,3 @@ class OrderSerializer(serializers.ModelSerializer):
         if delivery_crew_username:
             validated_data['delivery_crew'] = User.objects.get(username=delivery_crew_username)
         return super().update(instance, validated_data)
-    
-
-class UserRegSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
-    password2 = serializers.CharField(write_only=True, required=True)
-    
-    class Meta:
-        model = User
-        fields = ['username', 'password', 'password2', 'email', 'first_name', 'last_name']
-        
-    def validate_pass(self, attrs):
-        if attrs['password'] != attrs['password2']:
-            raise serializers.ValidationError({"password": "Password fields did not match."})
-        return attrs
-    
-    def create(self, validated_data):
-        validated_data.pop('password2')
-        user = User.objects.create(
-            username = validated_data['username'],
-            email = validated_data['email'],
-            first_name = validated_data.get('first_name', ''),
-            last_name = validated_data.get('last_name', '')
-        )
-        user.set_password(validated_data['password'])
-        user.save()
-        return user
-    
