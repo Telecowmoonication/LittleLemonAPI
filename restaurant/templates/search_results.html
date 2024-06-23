@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block title %}Search Results{% endblock %}
+
+{% block contents %}
+<h1>Search Results for "{{ query }}"</h1>
+
+{% if menu_items %}
+    <div class="results">
+        <h2>Menu Items</h2>
+        <ul id="menuitemResults">
+            {% for item in menu_items %}
+                <li>{{ item.title }} - {{ item.price }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+{% endif %}
+
+{% if categories %}
+    <div class="results">
+        <h2>Categories</h2>
+        <ul id="categoryResults">
+            {% for category in categories %}
+                <li>{{ category.title }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+{% endif %}
+
+{% if not menu_items and not categories %}
+    <div class="no-results">
+        <p>No results found for "<span>{{ query }}</span>".</p>
+    </div>
+{% endif %}
+{% endblock %}

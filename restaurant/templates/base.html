@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+
+{% load static %}
+
+<html lang='en'>
+    <head>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+
+        <title>{% block title %}Little Lemon Capstone Project{% endblock %}</title>
+        <meta name="description" content="A brief description"/>
+        <meta name="author" content="Based in Meta, Online, Little Lemon is an imagined, lemon-themed restaurant, focused on lemon recipes served with a lot of lemon."/>
+
+        <!-- Load favicon -->
+        <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}"/>
+
+        <!-- CSS files -->
+        <link rel="preload" as="style" href="{% static 'css/style.css' %}" onload="this.rel='stylesheet'"/>
+        <link rel="stylesheet" href="{% static 'css/style.css' %}"/>
+        <link rel="stylesheet" href="{% static 'css/flexbox1_search.css' %}"/>
+        <link rel="stylesheet" href="{% static 'css/flexbox2_nav_menu.css' %}"/>
+        <link rel="stylesheet" href="{% static 'css/flexbox3_images.css' %}"/>
+
+        <link rel="preconnect" href="https://fonts.googleapis.com"/>
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Karla&family=Markazi+Text:wght@500&display=swap"/>
+    </head>
+
+    <body>
+        <header>
+            <img src="{% static 'images/logo.png' %}" alt="Little Lemon Logo"/>
+        </header>
+
+        <!-- include navigation menu -->
+        <nav>
+            {% include 'flexbox2_nav_menu.html' %}
+        </nav>
+
+        <!-- include search box -->
+        <section>
+            {% include 'flexbox1_search.html' %}
+        </section>
+
+        <!-- contains a block for content to be inserted by child templates -->
+        <main>
+            {% block content %}{% endblock %}
+        </main>
+
+        <footer>
+            <article>
+                <img src="{% static 'images/logo_footer.png' %}" alt="Little Lemon footer logo"/>
+            </article>
+
+            <article>
+                <p>Copyright {{ current_year }} Little Lemon</p>
+            </article>
+        </footer>
+    </body>
+</html>

@@ -1,0 +1,8 @@
+<!-- Does not need <!DOCTYPE html>, {% load static %}, and other tags like <html>, <head>, and <body> because they will be included in the base.html -->
+<ul class="nav-container">
+    <li><a href="{% url 'index' %}">Home</a></li>
+    <li><a href="{% url 'menu_items' %}">Menu</a></li>
+    <li><a href="{% url 'booking' %}">Book</a></li>
+    <li><a href="{% url 'api-token-auth' %}">Sign In</a></li>
+    <li><a href="{% url 'logger' %}">Staff Log</a></li>
+</ul>

@@ -1,9 +1,11 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.utils import timezone
 from django.forms import ValidationError  # Might not need
 from django.core.paginator import Paginator, EmptyPage
 from django.contrib.auth.models import User, Group
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_GET, require_POST
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, renderer_classes, permission_classes, throttle_classes
 from rest_framework.renderers import TemplateHTMLRenderer, StaticHTMLRenderer
@@ -12,33 +14,136 @@ from rest_framework.authentication import TokenAuthentication # Might not need
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework import status, viewsets, generics
 from decimal import Decimal
-from .models import MenuItem, Category, Cart, Order, OrderItem, UserComments
-# from .forms import LogForm, CommentForm
-# from .permissions import IsAdminOrManager, IsAdmin
+from .models import Logger, UserComments, MenuItem, Category, Cart, Order, OrderItem
+from .forms import LogForm, CommentForm
+from .permissions import IsAdmin, IsEmployee, IsAdminOrManager, IsAdminOrManagerOrEmployee, IsOwnerOrAdminOrManager
 from .serializers import UserSerializer, UserRegSerializer, LoggerSerializer, UserCommentsSerializer, CategorySerializer, MenuItemSerializer, BookingSerializer, CartSerializer, OrderItemSerializer, OrderSerializer
 from datetime import datetime
 
 # Create your views here.
 
+# User registration
+    # POST: Must submit valid username, email, password, password verification. Creates new user (201)
+# Grading criteria 11. Customer can register
+# Endpoint: /restaurant/register
+# View type: Function based, api
+@api_view(['POST'])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def user_registration(request):
+    serializer = UserRegSerializer(data=request.data)
+    if serializer.is_valid():
+        user = serializer.save()
+        return Response({"message": "User created successfully."}, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# To obtain access token, users send a POST request to '/api/api-auth-token' with their username and password
+# Response will contain token they can use for authentication
+# Include token in Authorization header of any requests that require authentication
+# Grading Criteria 12. Customers can log in using their username and password and get access tokens
+
+
+# Allows employees to log/check their shift hours/hours worked
+    # GET: Admin and managers can view all logs, employees can only view their own logs
+    # POST: Must submit valid first name, last name, and time. Creates a time log
+# Endpoint: /restaurant/logger
+# View type: Function based, HTML
+@login_required
+@permission_classes([IsEmployee])
+@throttle_classes([UserRateThrottle])
+def logger_view(request):
+    if request.method == 'POST':
+        form = LogForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('logger_view') # Redirect to the same view to clear the form after submission
+        
+    else:
+        form = LogForm()
+        
+    # Display logged hours
+    if request.user.groups.filter(name='Manager').exists() or request.user.is_superuser:
+        logs = Logger.objects.all()
+    else:
+        logs = Logger.objects.filter(first_name=request.user.first_name, last_name=request.user.last_name)
+        
+    context = {
+        'form': form,
+        'logs': logs
+    }
+    return render(request, 'logger.html', context)
+
+
+# Allows employees to log/check their shift hours/hours worked
+    # GET: Admin and managers can view all logs, employees can only view their own logs (200)
+    # POST: Must submit valid first name, last name, and time. Creates a time log (201)
+# Endpoint: /restaurant/api/logger
+# View type: Function based, api
+@api_view(['GET', 'POST'])
+@permission_classes([IsAdminOrManagerOrEmployee])
+@throttle_classes([UserRateThrottle])
+def logger_api_view(request):
+    if request.method == 'POST':
+        serializer = LoggerSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Log entry created successfully."}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    if request.method == 'GET':
+        if request.user.groups.filter(name='Manager').exists() or request.user.is_superuser:
+            logs = Logger.objects.all()
+        else:
+            logs = Logger.objects.filter(first_name=request.user.first_name, last_name=request.user.last_name)
+        serializer = LoggerSerializer(logs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# Home Page
+    # GET: Displays the homepage
+# Endpoint: /restaurant/index
+# View Type: Function based, HTML
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def index(request):
+    current_year = datetime.now().year
+    return render(request, 'index.html', {'current_year': current_year})
 
 
 # Allows all users to search for titles from MenuItem and Category
-    # GET: Displays search results, 200
+    # GET: Displays search results (200)
 # Endpoint: /restaurant/search
-# View Type: HTML, AJAX
+# View Type: Function based, HTML
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+@require_GET
 def search_view(request):
-    return render(request, 'flexbox1_search.html')
+    query = request.GET.get('search', '')
+    menu_items = MenuItem.objects.filter(title__icontains=query) if query else []
+    categories = Category.objects.filter(title__icontains=query) if query else []
+    
+    context = {
+        'query': query,
+        'menu_items': menu_items,
+        'categories': categories,
+    }
+    
+    return render(request, 'search_results.html', context)
+
 
 
 # Allows all users to search for titles from MenuItem and Category
-    # GET: Displays search results, 200
+    # GET: Displays search results (200)
 # Endpoint: /restaurant/api/search
-# View Type: Function Based, api
+# View Type: Function based, api
 @api_view(['GET'])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
 def search_api_view(request):
     query = request.GET.get('search')
-    menuitem_results = MenuItem.objects.filter(title__icontains=query) if query else []
-    category_results = Category.objects.filter(title__icontains=query) if query else []
+    
+    if not query:
+        return Response({"detail": "Search query parameter is required."}, status=status.HTTP_400_BAD_REQUEST)
+    
+    menuitem_results = MenuItem.objects.filter(title__icontains=query)
+    category_results = Category.objects.filter(title__icontains=query)
     
     menuitem_serializer = MenuItemSerializer(menuitem_results, many=True)
     category_serializer = CategorySerializer(category_results, many=True)
@@ -46,4 +151,4 @@ def search_api_view(request):
     return Response({
         'menu_items': menuitem_serializer.data,
         'categories': category_serializer.data
-    })
+    }, status=status.HTTP_200_OK)

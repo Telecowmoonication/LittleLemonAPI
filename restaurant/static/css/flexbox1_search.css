@@ -1,4 +1,4 @@
-.container{
+.search-container {
     display: inline-flex;
     flex: 1 1 300px;
     border-radius: 10px;
@@ -6,21 +6,30 @@
     overflow: hidden;
 }
 
-.icon{
+.icon {
     padding: 0.8rem;
     width: 32px;
     height: 24px;
 }
 
-.searchBox{
+.searchBox {
     border: 0;
     flex: 1;
 }
 
-.searchButton{
+.searchButton {
     color: white;
     background: #0f4a8a;
     border: 0;
     padding: 0.8rem;
     border-radius: 8px;
+}
+
+.results {
+    margin-top: 20px;
+}
+
+.no-results {
+    margin-top: 20px;
+    color: red;
 }
