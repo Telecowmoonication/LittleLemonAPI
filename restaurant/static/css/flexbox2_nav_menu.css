@@ -1,0 +1,30 @@
+* {
+    margin: 0;
+    padding: 0;
+}
+
+/* justify-content aligns a flexible container's items when the items do not use all available horizontal space (align-items for verticle) */
+/* stretch distributes items evenly while auto-sizing items to fit container */
+.nav-container {
+    background-color: #f8e961;
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: stretch;
+}
+
+.nav-container li {
+    list-style-type: none;
+}
+
+.nav-container a {
+    display: inline-block;
+    padding: 25px;
+    margin: 0 25px;
+    text-align: center;
+    text-decoration: none;
+    color: #000000;
+}
+
+.nav-container a:hover {
+    background-color: lightsteelblue;
+}

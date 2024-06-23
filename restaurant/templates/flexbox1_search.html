@@ -1,64 +1,9 @@
-<!DOCTYPE html>
-
-{% load static %}
-
-<html>
-    <head>
-        <link rel="stylesheet" href="{% static 'css/flexbox1_search.css' %}">
-        <!-- Includes the jQuery library from a CDN, which simplifies JavaScript and AJAX operations -->
-        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    </head>
-
-    <body>
-        <div class="container">
-            <!-- Displays serach icon with specified size -->
-            <img class="icon" src="{% static 'images/purple_search_icon.svg' %}" alt="Search">
-            <!-- Search input box for users to type their search query -->
-            <input id="searchBox" class="searchBox" type="search" name="search" placeholder="Enter text here...">
-            <!-- Button triggering the search with 'performSearch' JS function when clicked -->
-            <input type="button" value="Search" class="searchButton" onclick="performSearch()">
-        </div>
-
-        <div class="results">
-            <h2>Menu Items</h2>
-            <!-- menu item search results -->
-            <ul id="menuitemResults"></ul>
-            <h2>Categories</h2>
-            <!-- category search results -->
-            <ul id="categoryResults"></ul>
-        </div>
-
-        <!-- Container for displaying "no results" message, hidden by default -->
-        <div class="no-results" style="display: none;">
-            <p>No results found for "<span id="searchQuery"></span>".</p>
-        </div>
-
-        <!-- JS for AJAX search -->
-        <script>
-            function performSearch() {
-                var query = $('#searchBox').val();
-                $.ajax({
-                    url: "{% url 'search_api_view' %}",
-                    data: {'search': query},
-                    success: function(data) {
-                        $('#menuitemResults').empty();
-                        $('#categoryResults').empty();
-                        $('.no-results').hide();
-
-                        if (data.menu_items.length === 0 && data.categories.length === 0) {
-                            $('#searchQuery').text(query);
-                            $('.no-results').show();
-                        } else {
-                            data.menu_items.forEach(function(item) {
-                                $('#menuitemResults').append('<li>' + item.title + ' - ' + item.price + '</li>');
-                            });
-                            data.categories.forEach(function(category) {
-                                $('#categoryResults').append('<li>' + category.name + '</li>');
-                            });
-                        }
-                    }
-                });
-            }
-        </script>
-    </body>
-</html>
+<!-- Does not need <!DOCTYPE html>, {% load static %}, and other tags like <html>, <head>, and <body> because they will be included in the base.html -->
+<div class="search-container">
+    <form method="get" action="{% url 'search_view' %}">
+        {% csrf_token %}
+        <img class="icon" src="{% static 'images/purple_search_icon.svg' %}" alt="Search">
+        <input id="searchBox" class="searchBox" type="search" name="search" placeholder="Enter text here...">
+        <button type="submit" class="searchButton">Search</button>
+    </form>
+</div>

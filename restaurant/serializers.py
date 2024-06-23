@@ -51,7 +51,7 @@ class LoggerSerializer(serializers.HyperlinkedModelSerializer):
     
     class Meta:
         model = Logger
-        fields = ['url', 'id', 'first_name', 'last_name', 'time_log']
+        fields = ['url', 'id', 'first_name', 'last_name', 'log_type', 'time_log']
         read_only_fields = ['id']
         
     def validate_first_name(self, value):
@@ -64,12 +64,12 @@ class LoggerSerializer(serializers.HyperlinkedModelSerializer):
             raise serializers.ValidationError("Last name should contain only letters.")
         
     def validate_time_log(self, value):
-        # Defining allowed time range (6AM to 12AM)
-        start_time = time(6, 0) # 6AM
+        # Defining allowed time range (7AM to 12AM)
+        start_time = time(7, 0) # 7AM
         end_time = time(0, 0) # 12AM (Midnight)
         
         if not (start_time <= value <= time(23, 59) or value == end_time):
-            raise serializers.ValidationError("Log time must be between 6AM and 12AM.")
+            raise serializers.ValidationError("Log time must be between 7AM and 12AM.")
         return value
     
     def validate(self, data):
