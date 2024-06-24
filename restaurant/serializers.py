@@ -93,8 +93,8 @@ class UserCommentsSerializer(serializers.HyperlinkedModelSerializer):
     
     class Meta:
         model = UserComments
-        fields = ['url', 'id', 'first_name', 'last_name', 'comment']
-        read_only_fields = ['id']
+        fields = ['url', 'id', 'first_name', 'last_name', 'comment', 'created_at']
+        read_only_fields = ['id', 'created_at']
         
     def validate_first_name(self, value):
         if not value.isalpha():

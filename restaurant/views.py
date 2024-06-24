@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.utils import timezone
 from django.forms import ValidationError  # Might not need
+from django.conf import settings
 from django.core.paginator import Paginator, EmptyPage
 from django.contrib.auth.models import User, Group
 from django.contrib.auth.decorators import login_required
@@ -9,7 +10,7 @@ from django.views.decorators.http import require_GET, require_POST
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, renderer_classes, permission_classes, throttle_classes
 from rest_framework.renderers import TemplateHTMLRenderer, StaticHTMLRenderer
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.authentication import TokenAuthentication # Might not need
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework import status, viewsets, generics
@@ -43,6 +44,7 @@ def user_registration(request):
 # Grading Criteria 12. Customers can log in using their username and password and get access tokens
 
 
+# Staff log
 # Allows employees to log/check their shift hours/hours worked
     # GET: Admin and managers can view all logs, employees can only view their own logs
     # POST: Must submit valid first name, last name, and time. Creates a time log
@@ -74,6 +76,7 @@ def logger_view(request):
     return render(request, 'logger.html', context)
 
 
+# Staff log API
 # Allows employees to log/check their shift hours/hours worked
     # GET: Admin and managers can view all logs, employees can only view their own logs (200)
     # POST: Must submit valid first name, last name, and time. Creates a time log (201)
@@ -109,6 +112,7 @@ def index(request):
     return render(request, 'index.html', {'current_year': current_year})
 
 
+# Search
 # Allows all users to search for titles from MenuItem and Category
     # GET: Displays search results (200)
 # Endpoint: /restaurant/search
@@ -129,7 +133,7 @@ def search_view(request):
     return render(request, 'search_results.html', context)
 
 
-
+# Search API
 # Allows all users to search for titles from MenuItem and Category
     # GET: Displays search results (200)
 # Endpoint: /restaurant/api/search
@@ -152,3 +156,62 @@ def search_api_view(request):
         'menu_items': menuitem_serializer.data,
         'categories': category_serializer.data
     }, status=status.HTTP_200_OK)
+    
+
+# User comments API
+# Allows anyone to view comments/reviews about the restaurant
+    # GET: Displays previously posted comments
+# Allows users to make comments/reviews about the restaurant
+    # POST: Submits user comment/review
+# Endpoint: /restaurant/api/comments
+# View type: Function based, api
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticatedOrReadOnly])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def comments_api_view(request):
+    if request.method == 'GET':
+        comments = UserComments.objects.all()
+        serializer = UserCommentsSerializer(comments, many=True)
+        return Response(serializer.data)
+    
+    elif request.method == 'POST':
+        serializer = UserCommentsSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    
+# User comments
+# Allows anyone to view comments/reviews about the restaurant
+    # GET: Displays previously posted comments
+# Allows users to make comments/reviews about the restaurant, redirects to login for anon
+    # POST: Submits user comment/review
+# Endpoint: /restaurant/comments
+# View type: Function based, HTML, uses comments_api_view to fetch and display data
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def comments_view(request):
+    form = CommentForm()
+    
+    if request.method == 'POST':
+        if not request.user.is_authenticated:
+            return redirect(settings.LOGIN_URL) # Redirects to login for unauthorized useers trying to POST
+        form = CommentForm(request.POST)
+        if form.is_valid():
+            response = request.post(
+                request.build_absolute_uri('/restaurant/comments'),
+                data = form.cleaned_data,
+                headers = {'Authorization': f'Token {request.user.auth_token.key}'}
+            )
+            if response.status_code == 201:
+                return redirect('comments_view')
+            else:
+                form.add_error(None, 'Error submitting comment.')
+    response = request.get(request.build_absolute_uri('/restaurant/comments'))
+    comments = response.json() if response.status_code == 200 else []
+    
+    context = {
+        'form': form,
+        'comments': comments
+    }
+    return render(request, 'comments.html', context)

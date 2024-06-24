@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Comments{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/comments.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container pt-4 comment-container"> <!-- Bootstrap margin and padding utility class can add extra margin and padding. container pt-4: p=padding t=top 4=1.5rem(24px if font-size is 16px) -->
+    <h1>Customer Comments</h1>
+
+    {% if user.is_authenticated %}
+        <form method="POST" id="comment-form">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+    {% else %}
+        <p>You must be logged in to post a comment.</p>
+    {% endif %}
+
+    <hr>
+
+    <h2>Comments</h2>
+    <ul class="comment-list">
+        {% for comment in comments %}
+            <li>{{ comment.first_name }} {{ comment.last_name }}: {{ comment.comment }}</li>
+        {% endfor %}
+    </ul>
+</div>
+
+<!-- JavaScript, handles the submission of the form with the submit button -->
+<script>
+    const form = document.getElementById('form');
+    if (form) {
+        form.addEventListener("submit", submitHandler);
+
+        function submitHandler(e){
+            e.preventDefault();
+
+            fetch(form.action, {method: 'POST', body: new FormData(form)})
+            .then(response => response.json())
+            .then(data => {
+                if (data.message === 'success'){
+                    alert('Success!');
+                    form.reset();
+                    location.reload();
+                } else if (data.message === 'error') {
+                    alert('Error: ' + JSON.stringify(data.errors));
+                }
+            });
+        }
+    }
+</script>
+{% endblock %}
