@@ -161,3 +161,9 @@ REST_FRAMEWORK = {
 DJOSER = {
     "USER_ID_FIELD" : "username",
 }
+
+# Redirects to login page for unauthenticated users trying to access something that needs authentication
+LOGIN_URL = '/accounts/login'
+
+# Redirects to home page after successful login
+LOGIN_REDIRECT_URL = '/'

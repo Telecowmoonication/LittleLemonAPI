@@ -1,0 +1,25 @@
+.comment-container {
+    margin-top: 2rem;
+    padding: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+.comment-form {
+    margin-bottom: 2rem;
+}
+
+.comment-list {
+    list-style-type: none;
+    padding: 0;
+}
+
+.comment-list li {
+    padding: 0.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.comment-list li:last-child {
+    border-bottom: none;
+}

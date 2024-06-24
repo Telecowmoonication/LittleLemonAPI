@@ -24,6 +24,10 @@ class UserComments(models.Model):
     first_name = models.CharField(max_length=200)
     last_name = models.CharField(max_length=200)
     comment = models.CharField(max_length=1000)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self)-> str:
+        return f'{self.first_name} {self.last_name}: {self.comment}'
     
 
 class Category(models.Model):
