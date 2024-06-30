@@ -7,7 +7,7 @@ h1, h2 {
     font-family: 'Markazi Text', serif;
 }
 
-.logger-container {
+.employee-container {
     margin: 0 auto;
     padding: 20px;
     max-width: 800px;
@@ -34,7 +34,7 @@ input, select, button {
 }
 
 button {
-    background-color: #4CAF50;
+    background-color: #4caf50;
     color: white;
     border: none;
     cursor: pointer;
@@ -46,7 +46,6 @@ button:hover {
     background-color: #29742d;
 }
 
-/* border-collapse property sets if table borders collapse into a single border or are seperated as in standard HTML */
 table {
     width: 100%;
     margin-top: 20px;

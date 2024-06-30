@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Delivery Crew{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/delivery_crew_view.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="delivery-crew-container">
+    <h1>Manage Delivery Crew</h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Add to Delivery crew</button>
+    </form>
+
+    <h2>Current Delivery Crew</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Username</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for driver in drivers %}
+                <tr>
+                    <td>{{ driver.username }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,42 +1,41 @@
-<!DOCTYPE html>
+{% extends "base.html" %}
 
-{% load static %}
+{% block title %}Log Hours{% endblock %}
 
-<html lang="en">
-    <head>
-        <title>Log Hours</title>
-        <link rel="stylesheet" href="{% static 'css/logger.css' %}">
-    </head>
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/logger.css' %}">
+{% endblock %}
 
-    <body>
-        <h1>Log Your Hours</h1>
-        <form method="post">
-            {% csrf_token %}
-            {{ form.as_p }}
-            <button type="submit">Submit</button>
-        </form>
+{% block content %}
+<div class="logger-container">
+    <h1>Log Your Hours</h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Submit</button>
+    </form>
 
-        <h2>Logged Hours</h2>
-        <table>
-            <thead>
+    <h2>Logged Hours</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Log Type</th>
+                <th>Time Log</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for log in logs %}
                 <tr>
-                    <th>First Name</th>
-                    <th>Last Name</th>
-                    <th>Log Type</th>
-                    <th>Time Log</th>
+                    <td>{{ log.first_name }}</td>
+                    <td>{{ log.last_name }}</td>
+                    <td>{{ log.log_type }}</td>
+                    <td>{{ log.time_log }}</td>
                 </tr>
-            </thead>
-
-            <tbody>
-                {% for log in logs %}
-                    <tr>
-                        <td>{{ log.first_name }}</td>
-                        <td>{{ log.last_name }}</td>
-                        <td>{{ log.log_type }}</td>
-                        <td>{{ log.time_log }}</td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </body>
-</html>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
