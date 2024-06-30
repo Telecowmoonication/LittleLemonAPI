@@ -1,0 +1,28 @@
+.category-details-container {
+    margin: 0 auto;
+    padding-inline-start: 20px;
+    max-width: 800px;
+}
+
+h1, h2 {
+    text-align: center;
+    font-family: 'Markazi Text', serif;
+}
+
+.menu-items-list {
+    list-style: none;
+    padding: 0;
+}
+
+.menu-items-list li {
+    margin: 10px 0;
+}
+
+.menu-items-list a {
+    color: #000;
+    text-decoration: none;
+}
+
+.menu-item-list a:hover {
+    text-decoration: underline;
+}

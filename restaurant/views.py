@@ -11,13 +11,13 @@ from django.views.decorators.http import require_GET, require_POST
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, renderer_classes, permission_classes, throttle_classes
 from rest_framework.renderers import TemplateHTMLRenderer, StaticHTMLRenderer
-from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.authentication import TokenAuthentication # Might not need
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework import status, viewsets, generics
 from decimal import Decimal
 from .models import Logger, UserComments, MenuItem, Category, Cart, Order, OrderItem
-from .forms import LogForm, CommentForm, EmployeeForm, ManagerForm, DeliveryCrewForm
+from .forms import LogForm, CommentForm, EmployeeForm, ManagerForm, DeliveryCrewForm, CategoryForm
 from .permissions import IsAdmin, IsEmployee, IsAdminOrManager, IsAdminOrManagerOrEmployee, IsOwnerOrAdminOrManager
 from .serializers import UserSerializer, UserRegSerializer, LoggerSerializer, UserCommentsSerializer, CategorySerializer, MenuItemSerializer, BookingSerializer, CartSerializer, OrderItemSerializer, OrderSerializer
 from datetime import datetime
@@ -30,6 +30,7 @@ from datetime import datetime
 # Endpoint: /restaurant/register
 # View type: Function based, api
 @api_view(['POST'])
+@permission_classes([AllowAny])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def user_registration(request):
     serializer = UserRegSerializer(data=request.data)
@@ -43,6 +44,32 @@ def user_registration(request):
 # Response will contain token they can use for authentication
 # Include token in Authorization header of any requests that require authentication
 # Grading Criteria 12. Customers can log in using their username and password and get access tokens
+
+
+# Staff log API
+# Allows employees to log/check their shift hours/hours worked
+    # GET: Admin and managers can view all logs, employees can only view their own logs (200)
+    # POST: Must submit valid first name, last name, and time. Creates a time log (201)
+# Endpoint: /restaurant/api/logger
+# View type: Function based, api
+@api_view(['GET', 'POST'])
+@permission_classes([IsAdminOrManagerOrEmployee])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def logger_api_view(request):
+    if request.method == 'POST':
+        serializer = LoggerSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Log entry created successfully."}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    if request.method == 'GET':
+        if request.user.groups.filter(name='Manager').exists() or request.user.is_superuser:
+            logs = Logger.objects.all()
+        else:
+            logs = Logger.objects.filter(first_name=request.user.first_name, last_name=request.user.last_name)
+        serializer = LoggerSerializer(logs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 # Staff log
@@ -77,69 +104,24 @@ def logger_view(request):
     return render(request, 'logger.html', context)
 
 
-# Staff log API
-# Allows employees to log/check their shift hours/hours worked
-    # GET: Admin and managers can view all logs, employees can only view their own logs (200)
-    # POST: Must submit valid first name, last name, and time. Creates a time log (201)
-# Endpoint: /restaurant/api/logger
-# View type: Function based, api
-@api_view(['GET', 'POST'])
-@permission_classes([IsAdminOrManagerOrEmployee])
-@throttle_classes([AnonRateThrottle, UserRateThrottle])
-def logger_api_view(request):
-    if request.method == 'POST':
-        serializer = LoggerSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "Log entry created successfully."}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    if request.method == 'GET':
-        if request.user.groups.filter(name='Manager').exists() or request.user.is_superuser:
-            logs = Logger.objects.all()
-        else:
-            logs = Logger.objects.filter(first_name=request.user.first_name, last_name=request.user.last_name)
-        serializer = LoggerSerializer(logs, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
 # Home Page
     # GET: Displays the homepage
 # Endpoint: /restaurant/index
 # View Type: Function based, HTML
+@permission_classes([AllowAny])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def index(request):
     current_year = datetime.now().year
     return render(request, 'index.html', {'current_year': current_year})
 
 
-# Search
-# Allows all users to search for titles from MenuItem and Category
-    # GET: Displays search results (200)
-# Endpoint: /restaurant/search
-# View Type: Function based, HTML
-@throttle_classes([AnonRateThrottle, UserRateThrottle])
-@require_GET
-def search_view(request):
-    query = request.GET.get('search', '')
-    menu_items = MenuItem.objects.filter(title__icontains=query) if query else []
-    categories = Category.objects.filter(title__icontains=query) if query else []
-    
-    context = {
-        'query': query,
-        'menu_items': menu_items,
-        'categories': categories,
-    }
-    
-    return render(request, 'search_results.html', context)
-
-
 # Search API
 # Allows all users to search for titles from MenuItem and Category
-    # GET: Displays search results (200)
+    # GET: Displays search results, 200
 # Endpoint: /restaurant/api/search
 # View Type: Function based, api
 @api_view(['GET'])
+@permission_classes([AllowAny])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def search_api_view(request):
     query = request.GET.get('search')
@@ -158,6 +140,28 @@ def search_api_view(request):
         'categories': category_serializer.data
     }, status=status.HTTP_200_OK)
     
+
+# Search
+# Allows all users to search for titles from MenuItem and Category
+    # GET: Displays search results (200)
+# Endpoint: /restaurant/search
+# View Type: Function based, HTML
+@permission_classes([AllowAny])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+@require_GET
+def search_view(request):
+    query = request.GET.get('search', '')
+    menu_items = MenuItem.objects.filter(title__icontains=query) if query else []
+    categories = Category.objects.filter(title__icontains=query) if query else []
+    
+    context = {
+        'query': query,
+        'menu_items': menu_items,
+        'categories': categories,
+    }
+    
+    return render(request, 'search_results.html', context)
+
 
 # User comments API
 # Allows anyone to view comments/reviews about the restaurant
@@ -190,6 +194,7 @@ def comments_api_view(request):
     # POST: Submits user comment/review
 # Endpoint: /restaurant/comments
 # View type: Function based, HTML, uses comments_api_view to fetch and display data
+@permission_classes([AllowAny])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def comments_view(request):
     form = CommentForm()
@@ -207,7 +212,8 @@ def comments_view(request):
             if response.status_code == 201:
                 return redirect('comments_view')
             else:
-                form.add_error(None, 'Error submitting comment.')
+                messages.error(request, "Error submitting comment.")
+                
     response = request.get(request.build_absolute_uri('/restaurant/comments'))
     comments = response.json() if response.status_code == 200 else []
     
@@ -652,3 +658,138 @@ def delivery_crew_delete_view(request):
     drivers = delivery_crew_group.user_set.all()
     context = {'drivers': drivers, 'form': form}
     return render(request, 'delivery_crew_delete_view.html', context)
+
+
+# Allows anyone to view categories
+    # GET: Displays categories, 200
+# Allows only admin or managers to add categories
+    # POST: Adds a category, 201
+# Endpoint: /api/category
+# View type: Function based, api
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def category_api_view(request):
+    if request.method == 'GET':
+        categories = Category.objects.all()
+        serializer = CategorySerializer(categories, many=True)
+        return Response(serializer.data)
+    
+    elif request.method == 'POST':
+        if request.user.is_authenticated and (request.user.groups.filter(name='Manager'.exists()) or request.user.is_superuser):
+            serializer = CategorySerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({"message": "Only managers and admins can add categories."}, status=status.HTTP_403_FORBIDDEN)       
+    
+
+# Allows anyone to view categories
+    # GET: Displays categories
+# Allows only admin or managers to add categories
+    # POST: Adds a category
+# Endpoint: /category
+# View type: Function based, HTML
+@permission_classes([AllowAny])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def category_view(request):
+    categories = Category.objects.all()
+    form = CategoryForm()
+    
+    if request.method == 'POST':
+        if request.user.is_authenticated and (request.user.groups.filter(name='Manager').exists() or request.user.is_superuser):
+            form = CategoryForm(request.POST)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "Category added successfully.")
+                return redirect('category_view')
+        else:
+            messages.error(request, "Only admin and managers can add a category.")
+        
+    context = {'categories': categories, 'form': form}
+    return render(request, 'category_view.html', context)
+
+
+# Allows only managers or admin to delete categories
+    # DELETE: Removes a category
+# Endpoint: /api/category/delete/<slug:slug>
+# View type: Function based, api
+@api_view(['DELETE'])
+@permission_classes([IsAdminOrManager])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def category_delete_api_view(request, slug):
+    try:
+        category = get_object_or_404(Category, slug=slug)
+        category.delete()
+        return Response({"message": f"Category deleted."}, status=status.HTTP_200_OK)
+    except Category.DoesNotExist:
+        return Response({"message": "Category not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+# Allows only managers or admin to delete categories
+    # POST: Removes user from group with .remove (forms only use GET and POST)
+# Endpoint: /category/delete/<slug:slug>
+# View type: Function based, HTML
+@login_required
+@permission_classes([IsAdminOrManager])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def category_delete_view(request):
+    categories = Category.objects.all()
+    form = CategoryForm()
+    
+    if request.method == 'POST':
+        form = CategoryForm(request.POST)
+        if form.is_valid():
+            try:
+                category = Category.objects.get(slug=form.cleaned_data['slug'])
+                category.delete()
+                messages.success(request, f"Category deleted successfully.")
+            except Category.DoesNotExist:
+                messages.error(request, "Category not found.")
+            return redirect('category_delete_view')
+        
+    context = {'categories': categories, 'form': form}
+    return render(request, 'category_delete_view.html', context)
+
+
+# Allows anyone to view the items in each category
+    # GET: Displays items in category
+# Endpoint: /api/category/<slug:category_slug>
+# View type: Function based, api
+@api_view(['GET'])
+@permission_classes([AllowAny])
+@throttle_classes([AllowAny, UserRateThrottle])
+def category_details_api_view(request, category_slug):
+    try:
+        category = Category.objects.get(slug=category_slug)
+    except Category.DoesNotExist:
+        return Response({"message": "Category not found."}, status=status.HTTP_404_NOT_FOUND)
+    
+    menu_items = MenuItem.objects.filter(category=category)
+    category_serializer = CategorySerializer(category)
+    menu_item_serializer = MenuItemSerializer(menu_items, many=True)
+    
+    return Response({
+        "category": category_serializer.data,
+        "menu_items": menu_item_serializer.data
+    }, status=status.HTTP_200_OK)
+
+
+# Allows anyone to view the items in each category
+    # GET: Displays items in category
+# Endpoint: /category/<slug:category_slug>
+# View type: Function based, HTML
+@permission_classes([AllowAny])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def category_details_view(request, category_slug):
+    try:
+        category = Category.objects.get(slug=category_slug)
+    except Category.DoesNotExist:
+        messages.error(request, "Category not found.")
+        
+    menu_items = MenuItem.objects.filter(category=category)
+    
+    context = {'category': category, 'menu_items': menu_items}
+    return render(request, 'category_details_view.html', context)
