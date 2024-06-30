@@ -1,0 +1,42 @@
+.manager-container {
+    margin-top: 2rem;
+}
+
+h1, h2 {
+    font-family: 'Markazi Text', serif;
+    color: #333333;
+}
+
+.alert {
+    margin-top: 1rem;
+    padding: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.btn {
+    margin-top: 1rem;
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.btn-primary {
+    background-color: #0f4a8a;
+}
+
+.btn-primary:hover {
+
+    background-color: #0d3e75;
+}
+
+.btn-danger {
+    background-color: #d9534f;
+}
+
+.btn-danger:hover {
+    background-color: #c9302c;
+}

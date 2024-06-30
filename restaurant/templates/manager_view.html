@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Manager of Managers{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/manager_view.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="manager-container">
+    <h1>Manager Manager</h1>
+    <h2>Current Managers<h2>
+        <ul>
+            {% for manager in managers %}
+                <li>{{ manager.username }}</li>
+            {% endfor %}
+        </ul>
+    <h2>Add Manager</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Add</button>
+    </form>
+</div>
+{% endblock %}

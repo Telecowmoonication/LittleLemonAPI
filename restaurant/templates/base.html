@@ -41,6 +41,18 @@
             {% include 'flexbox1_search.html' %}
         </section>
 
+
+        <!-- messages -->
+        {% if messages %}
+            <div class="messages-container">
+                {% for message in messages %}
+                    <div class="alert {{ message.tags }}">{{ messsage }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+
+
         <!-- contains a block for content to be inserted by child templates -->
         <main>
             {% block content %}{% endblock %}
