@@ -25,5 +25,11 @@ urlpatterns = [
     path('groups/delivery-crew/users', views.delivery_crew_view, name='delivery_crew_view'), # HTML view to display/add users to Delivery Crew group
     path('api/groups/delivery-crew/users/<str:username>', views.delivery_crew_delete_api_view, name='delivery_crew_delete_api_view'), # API view to remove users from Delivery Crew group
     path('groups/delivery-crew/users/<str:username>', views.delivery_crew_delete_view, name='delivery_crew_delete_view'), # HTML view to remove users from Delivery Crew group
+    path('api/category', views.category_api_view, name='category_api_view'), # API view to display/add categories
+    path('category', views.category_view, name='category_view'), # HTML view to display/add categories
+    path('api/category/delete/<slug:slug>', views.category_delete_api_view, name='category_delete_api_view'), # API view to delete categories
+    path('category/delete/<slug:slug>', views.category_delete_view, name='category_delete_view'), # HTML view to delete categories
+    path('api/category/<slug:category_slug', views.category_details_api_view, name='category_details_api_view'), # API view to display menu items in category
+    path('category/<slug:category_slug', views.category_details_view, name='category_details_view'), # HTML view to display menu items in category
     
 ]

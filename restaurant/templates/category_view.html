@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Categories{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/category_manage_view.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="category-container">
+    <h1>Categories</h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        {% if user.is_authenticated and (user.groups.filter(name='Manager').exists() or user.is_superuser) %}
+            <button type="submit">Add Category</button>
+        {% endif %}
+    </form>
+
+    <h2>Current Categories</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Category</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for category in categories %}
+                <tr>
+                    <td><a herf="{% url 'category_details_view' category.slug %}">{{ category.title }}</a></td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
