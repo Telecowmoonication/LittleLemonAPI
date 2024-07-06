@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.models import User
-from .models import Logger, UserComments, Category
+from .models import Logger, UserComments, Category, MenuItem
 
 class LogForm(forms.ModelForm):
     class Meta:
@@ -22,8 +22,8 @@ class EmployeeForm(forms.ModelForm):
         fields = ['username']
 
         
-class ManagerForm(forms.form):
-    username = forms.Charfield(max_length=255, help_text="Enter the username of the user to be added/removed as a manager.")
+class ManagerForm(forms.ModelForm):
+    username = forms.CharField(max_length=255, help_text="Enter the username of the user to be added/removed as a manager.")
     
     class Meta:
         model = User
@@ -42,3 +42,17 @@ class CategoryForm(forms.ModelForm):
     class Meta:
         model = Category
         fields = ['slug', 'title']
+        
+        
+class MenuItemForm(forms.ModelForm):
+    class Meta:
+        model = MenuItem
+        fields = ['title', 'price', 'featured', 'category', 'inventory']
+        
+        
+class MenuItemDeleteForm(forms.ModelForm):
+    slug = forms.SlugField(max_length=255, help_text="Enter the slug of the menu item to be deleted.")
+    
+    class Meta:
+        model = MenuItem
+        fields = ['slug']

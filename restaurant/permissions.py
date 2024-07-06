@@ -46,3 +46,14 @@ class IsOwnerOrAdminOrManager(BasePermission):
         return bool(obj.first_name == request.user.first_name and
                     obj.last_name == request.user.last_name or
                     is_manager or request.user.is_superuser)
+        
+        
+class IsOwnerOrEmployeeOrAdmin(BasePermission):
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated)
+    
+    def has_object_permission(self, request, view, obj):
+        is_employee = request.user.groups.filter(name='Employee').exists()
+        return bool(obj.first_name == request.user.first_name and
+                    obj.last_name == request.user.last_name or
+                    is_employee or request.user.is_superuser)
