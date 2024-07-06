@@ -17,7 +17,7 @@ from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework import status, viewsets, generics
 from decimal import Decimal
 from .models import Logger, UserComments, MenuItem, Category, Cart, Order, OrderItem
-from .forms import LogForm, CommentForm, EmployeeForm, ManagerForm, DeliveryCrewForm, CategoryForm
+from .forms import LogForm, CommentForm, EmployeeForm, ManagerForm, DeliveryCrewForm, CategoryForm, MenuItemForm, MenuItemDeleteForm
 from .permissions import IsAdmin, IsEmployee, IsAdminOrManager, IsAdminOrManagerOrEmployee, IsOwnerOrAdminOrManager
 from .serializers import UserSerializer, UserRegSerializer, LoggerSerializer, UserCommentsSerializer, CategorySerializer, MenuItemSerializer, BookingSerializer, CartSerializer, OrderItemSerializer, OrderSerializer
 from datetime import datetime
@@ -706,7 +706,7 @@ def category_view(request):
                 messages.success(request, "Category added successfully.")
                 return redirect('category_view')
         else:
-            messages.error(request, "Only admin and managers can add a category.")
+            messages.error(request, "Only managers and admin can add a category.")
         
     context = {'categories': categories, 'form': form}
     return render(request, 'category_view.html', context)
@@ -723,7 +723,7 @@ def category_delete_api_view(request, slug):
     try:
         category = get_object_or_404(Category, slug=slug)
         category.delete()
-        return Response({"message": f"Category deleted."}, status=status.HTTP_200_OK)
+        return Response({"message": "Category deleted."}, status=status.HTTP_200_OK)
     except Category.DoesNotExist:
         return Response({"message": "Category not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -745,7 +745,7 @@ def category_delete_view(request):
             try:
                 category = Category.objects.get(slug=form.cleaned_data['slug'])
                 category.delete()
-                messages.success(request, f"Category deleted successfully.")
+                messages.success(request, "Category deleted successfully.")
             except Category.DoesNotExist:
                 messages.error(request, "Category not found.")
             return redirect('category_delete_view')
@@ -793,3 +793,131 @@ def category_details_view(request, category_slug):
     
     context = {'category': category, 'menu_items': menu_items}
     return render(request, 'category_details_view.html', context)
+
+
+# Allows anyone to view the menu
+    # GET: Displays menu, 200
+# Allows only managers or admin to add menu items
+    # POST: Adds menu item, 201
+# Endpoint: /api/menu
+# View type: Function based, api
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def menu_api_view(request):
+    if request.method == 'GET':
+        menu_items = MenuItem.objects.all()
+        serializer = MenuItemSerializer(menu_items, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    elif request.method == 'POST':
+        if request.user.is_authenticated and (request.user.groups.filter(name='Manager').exists() or request.user.is_superuser):
+            serializer = MenuItemSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({"message": "Only managers and admin can add menu items."})
+
+
+# Allows anyone to view the menu
+    # GET: Displays menu
+# Allows only admin or managers to add menu items
+    # POST: Adds menu item
+# Endpoint: /menu
+# View type: Function based, HTML
+@permission_classes([AllowAny])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def menu_view(request):
+    menu_items = MenuItem.objects.all()
+    form = MenuItemForm()
+    
+    if request.method == 'POST':
+        if request.user.is_authenticated and (request.user.groups.filter(name='Manager').exists() or request.user.is_superuser):
+            form = MenuItemForm(request.POST)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "Menu item added successfully.")
+                return redirect('menu_view')
+        else:
+            messages.error(request, "Only managers and admin can add menu items.")
+            
+    context = {'menu_items': menu_items, 'form': form}
+    return render(request, 'menu_view.html', context)
+
+
+# Allows anyone to view individual menu items
+    # GET: Displays menu item, 200
+# Endpoint: /api/menu-item/<slug:slug>
+# View type: Function based, api
+@api_view(['GET'])
+@permission_classes([AllowAny])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def menu_item_api_view(request, slug):
+    menu_item = get_object_or_404(MenuItem, slug=slug)
+    serializer = MenuItemSerializer(menu_item)
+    return Response(serializer.data)
+
+
+# Allows anyone to view individual menu items
+    # GET: Displays menu item
+# Endpoint: /menu-item/<slug:slug>
+# View type: Function based, HTML
+@permission_classes([AllowAny])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def menu_item_view(request, slug):
+    menu_item = get_object_or_404(MenuItem, slug=slug)
+    context = {'menu_item': menu_item}
+    return render(request, 'menu_item_view.html', context)
+
+
+# Allows only managers or admin to delete menu items
+    # DELETE: Removes menu item, 200
+# Endpoint: /api/menu-item/delete/<slug:slug>
+# View type: Function based, api
+@api_view(['DELETE'])
+@permission_classes([IsAdminOrManager])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def menu_item_delete_api_view(request, slug):
+    try:
+        menu_item = get_object_or_404(MenuItem, slug=slug)
+        menu_item.delete()
+        return Response({"message": "Menu item deleted."}, status=status.HTTP_200_OK)
+    except MenuItem.DoesNotExist:
+        return Response({"message": "MenuItem not found."}, status=status.HTTP_404_NOT_FOUND)
+    
+    
+# Allows only managers or admin to delete menu items
+    # POST: Removes menu item (forms only use GET and POST)
+# Endpoint: /menu-item/delete/<slug:slug>
+# View type: Function based, HTML
+@login_required
+@permission_classes([IsAdminOrManager])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def menu_item_delete_view(request):
+    menu_items = MenuItem.objects.all()
+    form = MenuItemDeleteForm()
+    
+    if request.method == 'POST':
+        form = MenuItemDeleteForm(request.POST)
+        if form.is_valid():
+            try:
+                menu_item = MenuItem.objects.get(slug=form.cleaned_data['slug'])
+                menu_item.delete()
+                messages.success(request, "Menu item deleted successfully.")
+            except MenuItem.DoesNotExist:
+                messages.error(request, "Menu item not found.")
+            return redirect('menu_item_delete_view')
+    
+    context = {'menu_items': menu_items, 'form': form}
+    return render(request, 'menu_item_delete_view.html', context)
+
+
+# Allows only the user to view, add, and remove menu items from their cart
+    # GET: Displays menu item(s) already in cart
+    # POST: Adds menu item to cart, sets the authenticated user as the user id for these cart items
+    # DELETE: Removes all menu items created by the current user token from their cart
+    ## Should be able to delete a single item at a time as well
+# Endpoint: /api/cart
+# View type: Function based, api

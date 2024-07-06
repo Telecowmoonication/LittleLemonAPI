@@ -29,7 +29,20 @@ urlpatterns = [
     path('category', views.category_view, name='category_view'), # HTML view to display/add categories
     path('api/category/delete/<slug:slug>', views.category_delete_api_view, name='category_delete_api_view'), # API view to delete categories
     path('category/delete/<slug:slug>', views.category_delete_view, name='category_delete_view'), # HTML view to delete categories
-    path('api/category/<slug:category_slug', views.category_details_api_view, name='category_details_api_view'), # API view to display menu items in category
-    path('category/<slug:category_slug', views.category_details_view, name='category_details_view'), # HTML view to display menu items in category
-    
+    path('api/category/<slug:category_slug>', views.category_details_api_view, name='category_details_api_view'), # API view to display menu items in category
+    path('category/<slug:category_slug>', views.category_details_view, name='category_details_view'), # HTML view to display menu items in category
+    path('api/menu', views.menu_api_view, name='menu_api_view'), # API view to display menu/add menu items
+    path('menu', views.menu_view, name='menu_view'), # HTML view to display menu/add menu items
+    path('api/menu-item/<slug:slug>', views.menu_item_api_view, name='menu_item_api_view'), # API view to display individual menu items
+    path('menu-item/<slug:slug>', views.menu_item_view, name='menu_item_view'), # HTML view to display individual menu items
+    path('api/menu-item/delete/<slug:slug>', views.menu_item_delete_api_view, name='menu_item_delete_api_view'), # API view to delete menu items
+    path('menu-item/delete/<slug:slug>', views.menu_item_delete_view, name='menu_item_delete_view'), # HTML view to delete menu items
+    path(),
+    path(),
+    path(),
+    path(),
+    path(),
+    path(),
+    path(),
+    path(),
 ]

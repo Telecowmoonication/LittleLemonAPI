@@ -47,16 +47,6 @@ class MenuItem(models.Model):
     
     def __str__(self)-> str:
         return self.title
-
-
-# For booking a reservation
-class Booking(models.Model):
-    name = models.CharField(max_length=255, help_text="Enter First and Last name please.")
-    no_of_guests = models.IntegerField(default=1)
-    booking_date = models.DateTimeField()
-    
-    def __str__(self)-> str:
-        return f'Reservation by {self.name} for {self.no_of_guests}'
     
 
 # For each user's cart
@@ -112,3 +102,12 @@ class OrderItem(models.Model):
     
     def __str__(self)-> str:
         return f'{self.order.id} - {self.menuitem.title} (x{self.quantity})'
+
+# For booking a reservation
+class Booking(models.Model):
+    name = models.CharField(max_length=255, help_text="Enter First and Last name please.")
+    no_of_guests = models.IntegerField(default=1)
+    booking_date = models.DateTimeField()
+    
+    def __str__(self)-> str:
+        return f'Reservation by {self.name} for {self.no_of_guests}'

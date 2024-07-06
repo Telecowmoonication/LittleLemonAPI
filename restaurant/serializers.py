@@ -183,26 +183,6 @@ class MenuItemSerializer(serializers.HyperlinkedModelSerializer):
             raise serializers.ValidationError("Title must be at least 3 characters long.")
         return bleach.clean(value, tags=[], strip=True)
     
-    
-class BookingSerializer(serializers.HyperlinkedModelSerializer):
-    
-    class Meta:
-        model = Booking
-        fields = ['url', 'id', 'name', 'no_of_guests', 'booking_date']
-        read_only_fields = ['id']
-        
-    def validate_no_of_guests(self, value):
-            if value < 1:
-                raise serializers.ValidationError("Number of guests must be at least 1.")
-            if value > 15:
-                raise serializers.ValidationError("Number of guests cannot exceed 15. ")
-            return value
-        
-    def validate_booking_date(self, value):
-            if value < timezone.now():
-                raise serializers.ValidationError("Booking date must be in the future.")
-            return value
-        
 
 class CartSerializer(serializers.HyperlinkedModelSerializer):
     user_username = serializers.ReadOnlyField(source='user.username') # Gets username from User model
@@ -346,3 +326,23 @@ class OrderSerializer(serializers.HyperlinkedModelSerializer):
         if delivery_crew_username:
             validated_data['delivery_crew'] = User.objects.get(username=delivery_crew_username)
         return super().update(instance, validated_data)
+
+   
+class BookingSerializer(serializers.HyperlinkedModelSerializer):
+    
+    class Meta:
+        model = Booking
+        fields = ['url', 'id', 'name', 'no_of_guests', 'booking_date']
+        read_only_fields = ['id']
+        
+    def validate_no_of_guests(self, value):
+            if value < 1:
+                raise serializers.ValidationError("Number of guests must be at least 1.")
+            if value > 15:
+                raise serializers.ValidationError("Number of guests cannot exceed 15. ")
+            return value
+        
+    def validate_booking_date(self, value):
+            if value < timezone.now():
+                raise serializers.ValidationError("Booking date must be in the future.")
+            return value

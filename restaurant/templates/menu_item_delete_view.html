@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Remove Menu Items{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/menu_item_view.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="menu-item-container">
+    <h1>Remove Menu Item</h1>
+    <form method="post">
+        {{ csrf_token }}
+        {{ form.as_p }}
+    <button type="submit">Remove Menu Item</button>
+    </form>
+    
+    <h2>Current Menu Items</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Menu Item</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for menu_item in menu_items %}
+                <tr>
+                    <td>{{ menu_item.slug }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}    

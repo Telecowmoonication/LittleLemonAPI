@@ -4,11 +4,6 @@
     max-width: 800px;
 }
 
-h1, h2 {
-    text-align: center;
-    font-family: 'Markazi Text', serif;
-}
-
 .menu-items-list {
     list-style: none;
     padding: 0;
