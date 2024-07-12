@@ -1,0 +1,71 @@
+.cart-container {
+    margin-top: 2rem;
+}
+
+h1 {
+    font-family: 'Markazi Text', serif;
+    color: #333333;
+}
+
+table {
+    width: 100%;
+    margin-top: 20px;
+    border-collapse: collapse;
+}
+
+table, th, td {
+    border: 1px solid #ddd;
+}
+
+th, td {
+    padding: 10px;
+    text-align: left;
+}
+
+th {
+    background-color: #f4f4f4;
+}
+
+.quantity-input {
+    width: 60px;
+    text-align: center;
+}
+
+.btn {
+    margin-top: 1rem;
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.btn-sm {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.btn-primary {
+    background-color: #0f4a8a;
+}
+
+.btn-primary:hover {
+    background-color: #0d3e75;
+}
+
+.btn-danger {
+    background-color: #d9534f;
+}
+
+.btn-danger:hover {
+    background-color: #c9302c;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+}
+
+.btn-secondary:hover {
+    background-color: #5a6268;
+}

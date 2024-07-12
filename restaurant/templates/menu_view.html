@@ -12,26 +12,34 @@
     <form method="post">
         {% csrf_token %}
         {{ form.as_p }}
-        <button type="submit">Add Menu Item</button>
+        <button type="submit" name="add_menu_item">Add Menu Item</button>
     </form>
 
     <h2>Current Menu</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Title</th>
-                <th>Price</th>
-            </tr>
-        </thead>
-
-        <tbody>
-            {% for item in menu_items %}
+    <form method="post">
+        {% csrf_token %}
+        <table>
+            <thead>
                 <tr>
-                    <td><a href="{% url 'menu_item_detail_view' item.slug %}">{{ item.title }}</a></td>
-                    <td>{{ item.price }}</td>
+                    <th>Title</th>
+                    <th>Price</th>
+                    <th>Add to Cart</th>
                 </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+            </thead>
+
+            <tbody>
+                {% for item in menu_items %}
+                    <tr>
+                        <td><a href="{% url 'menu_item_detail_view' item.slug %}">{{ item.title }}</a></td>
+                        <td>{{ item.price }}</td>
+                        <td>
+                            {{ cart_form.as_p }}
+                            <button type="submit" name="add_to_cart">Add to Cart</button>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </form>
 </div>
 {% endblock %}

@@ -13,5 +13,11 @@
     <p>Category: {{ menu_item.category.title }}</p>
     <p>Featured: {{ menu_item.featured }}</p>
     <p>Stock: {{ menu_item.inventory }}</p>
+
+    <form method="post">
+        {% csrf_token %}
+        {{ cart_form.as_p }}
+        <button type="submit">Add to Cart</button>
+    </form>
 </div>
 {% endblock %}

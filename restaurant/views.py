@@ -8,6 +8,7 @@ from django.core.paginator import Paginator, EmptyPage
 from django.contrib.auth.models import User, Group
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_GET, require_POST
+from django.utils.text import slugify
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, renderer_classes, permission_classes, throttle_classes
 from rest_framework.renderers import TemplateHTMLRenderer, StaticHTMLRenderer
@@ -17,7 +18,7 @@ from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework import status, viewsets, generics
 from decimal import Decimal
 from .models import Logger, UserComments, MenuItem, Category, Cart, Order, OrderItem
-from .forms import LogForm, CommentForm, EmployeeForm, ManagerForm, DeliveryCrewForm, CategoryForm, MenuItemForm, MenuItemDeleteForm
+from .forms import LogForm, CommentForm, EmployeeForm, ManagerForm, DeliveryCrewForm, CategoryForm, MenuItemForm, MenuItemDeleteForm, CartForm
 from .permissions import IsAdmin, IsEmployee, IsAdminOrManager, IsAdminOrManagerOrEmployee, IsOwnerOrAdminOrManager
 from .serializers import UserSerializer, UserRegSerializer, LoggerSerializer, UserCommentsSerializer, CategorySerializer, MenuItemSerializer, BookingSerializer, CartSerializer, OrderItemSerializer, OrderSerializer
 from datetime import datetime
@@ -823,8 +824,10 @@ def menu_api_view(request):
 
 # Allows anyone to view the menu
     # GET: Displays menu
-# Allows only admin or managers to add menu items
-    # POST: Adds menu item
+# Allows only admin or managers to add items to the menu
+    # POST (add_menu_item): Adds menu item
+# Allows authenticated users to add items to their cart
+    # POST (add_to_cart): Adds item to cart
 # Endpoint: /menu
 # View type: Function based, HTML
 @permission_classes([AllowAny])
@@ -832,43 +835,81 @@ def menu_api_view(request):
 def menu_view(request):
     menu_items = MenuItem.objects.all()
     form = MenuItemForm()
+    cart_form = CartForm()
     
     if request.method == 'POST':
-        if request.user.is_authenticated and (request.user.groups.filter(name='Manager').exists() or request.user.is_superuser):
-            form = MenuItemForm(request.POST)
-            if form.is_valid():
-                form.save()
-                messages.success(request, "Menu item added successfully.")
+        if request.user.is_authenticated and 'add_menu_item' in request.POST:
+            if request.user.is_authenticated and (request.user.groups.filter(name='Manager').exists() or request.user.is_superuser):
+                form = MenuItemForm(request.POST)
+                if form.is_valid():
+                    form.save()
+                    messages.success(request, "Menu item added successfully.")
+                    return redirect('menu_view')
+            else:
+                messages.error(request, "Only managers and admin can add menu items.")
+                
+        elif request.user.is_authenticated and 'add_to_cart' in request.POST:
+            cart_form = CartForm(request.POST)
+            if cart_form.is_valid():
+                cart_item = cart_form.save(commit=False)
+                cart_item.user = request.user
+                cart_item.save()
+                messages.success(request, f"{cart_item.menuitem.title} added to your cart.")
                 return redirect('menu_view')
-        else:
-            messages.error(request, "Only managers and admin can add menu items.")
             
-    context = {'menu_items': menu_items, 'form': form}
+    context = {'menu_items': menu_items, 'form': form, 'cart_form': cart_form}
     return render(request, 'menu_view.html', context)
 
 
 # Allows anyone to view individual menu items
     # GET: Displays menu item, 200
+# Allows authenticated user to add menu items to their cart
+    # POST: Adds item to cart, sets the authenticated user as the user id for these cart items, 201
 # Endpoint: /api/menu-item/<slug:slug>
 # View type: Function based, api
-@api_view(['GET'])
+@api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def menu_item_api_view(request, slug):
     menu_item = get_object_or_404(MenuItem, slug=slug)
-    serializer = MenuItemSerializer(menu_item)
-    return Response(serializer.data)
+    
+    if request.method == 'GET':
+        serializer = MenuItemSerializer(menu_item)
+        return Response(serializer.data)
+    
+    elif request.method == 'POST':
+        if not request.user.is_authenticated:
+            return Response({"message": "Authentication required to add items to the cart. Please log in or register."}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        cart_serializer = CartSerializer(data=request.data, context={'request': request})
+        if cart_serializer.is_valid():
+            cart_serializer.save()
+            return Response(cart_serializer.data, status=status.HTTP_201_CREATED)
+        return Response(cart_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 # Allows anyone to view individual menu items
     # GET: Displays menu item
+# Allows authenticated users to add items to their cart
+    # POST: Adds item to cart, sets the authenticated user as the user id for these cart items
 # Endpoint: /menu-item/<slug:slug>
 # View type: Function based, HTML
 @permission_classes([AllowAny])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def menu_item_view(request, slug):
     menu_item = get_object_or_404(MenuItem, slug=slug)
-    context = {'menu_item': menu_item}
+    cart_form = CartForm(initial={'menuitem':menu_item})
+    
+    if request.method == 'POST' and request.user.is_authenticated:
+        cart_form = CartForm(request.POST)
+        if cart_form.is_valid():
+            cart_item = cart_form.save(commit=False)
+            cart_item.user = request.user
+            cart_item.save()
+            messages.success(request, f"{menu_item.title} added to cart.")
+            return redirect('menu_item_view', slug=slug)
+    
+    context = {'menu_item': menu_item, 'cart_form': cart_form}
     return render(request, 'menu_item_view.html', context)
 
 
@@ -915,9 +956,97 @@ def menu_item_delete_view(request):
 
 
 # Allows only the user to view, add, and remove menu items from their cart
-    # GET: Displays menu item(s) already in cart
-    # POST: Adds menu item to cart, sets the authenticated user as the user id for these cart items
-    # DELETE: Removes all menu items created by the current user token from their cart
-    ## Should be able to delete a single item at a time as well
+    # GET: Displays menu item(s) already in cart, 200
+    # POST: Adds menu item to cart, sets the authenticated user as the user id for these cart items, 201
+    # DELETE: Removes item from user cart, 200
 # Endpoint: /api/cart
 # View type: Function based, api
+@api_view(['GET', 'POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def cart_api_view(request):
+    user = request.user
+    
+    if request.method == 'GET':
+        cart_items = Cart.objects.filter(user=user)
+        serializer = CartSerializer(cart_items, many=True, context={'request': request})
+        return Response(serializer.data)
+    
+    elif request.method == 'POST':
+        serializer = CartSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    elif request.method == 'DELETE':
+        menuitem_titles = request.data.get('menuitem_titles', [])
+        if not menuitem_titles:
+            return Response({"message": "Menu item name(s) required to delete."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        deleted_titles = []
+        for title in menuitem_titles:
+            slug = slugify(title)
+            try:
+                menuitem = MenuItem.objects.get(slug=slug)
+                cart_item = Cart.objects.get(user=user, menuitem=menuitem)
+                cart_item.delete()
+                deleted_titles.append(menuitem.title)
+            except MenuItem.DoesNotExist:
+                return Response({"message": f"Menu item '{title}' not found."}, status=status.HTTP_404_NOT_FOUND)
+            except Cart.DoesNotExist:
+                return Response({"message": f"Item '{title}' not found in your cart."}, status=status.HTTP_404_NOT_FOUND)
+            
+        return Response({"message": f"Removed item(s) from cart: {', '.join(deleted_titles)}"}, status=status.HTTP_200_OK)
+    
+    
+# Allows only the user to view, add, and remove menu items from their cart
+    # GET: Displays items in the user's cart
+    # POST (update_cart): Changes quantity of item in cart
+    # POST (remove_selected): Removes selcted item(s) from cart
+# Endpoint: /cart
+# View type: Function based, HTML
+def cart_view(request):
+    user = request.user
+    
+    if request.method == 'POST':
+        if 'update_cart' in request.POST:
+            menuitem_id = request.POST.get('menuitem_id')
+            new_quantity = int(request.POST.get('new_quantity'))
+                
+            try:
+                menuitem = MenuItem.objects.get(id=menuitem_id)
+                cart_item, created = Cart.objects.get(user=user, menuitem=menuitem)
+                if new_quantity <= menuitem.inventory:
+                    cart_item.quantity = new_quantity
+                    cart_item.save()
+                    messages.success(request, f"Quantity of {menuitem.title} updated to {new_quantity}.")
+                else:
+                    messages.error(request, f"Requested quantity exceeds available stock for {menuitem.title}. Available stock: {menuitem.inventory}")
+            except MenuItem.DoesNotExist:
+                messages.error(request, "Menu item not found.")
+            except Cart.DoesNotExist:
+                messages.error(request, "Item not found in your cart.")
+            return redirect('cart_view')
+            
+        elif 'remove_selected' in request.POST:
+            selected_items = request.POST.getlist('selected_items')
+            deleted_titles = []
+            for item_id in selected_items:
+                try:
+                    menuitem = MenuItem.objects.get(id=item_id)
+                    cart_item = Cart.objects.get(user=user, menuitem=menuitem)
+                    cart_item.delete()
+                    deleted_titles.append(menuitem.title)
+                except MenuItem.DoesNotExist:
+                    messages.error(request, "Menu item not found.")
+                except Cart.DoesNotExist:
+                    messages.error(request, f"Item '{menuitem.title}' not found in your cart.")
+                    
+            if deleted_titles:
+                messages.success(request, f"Removed item(s) from your cart: {', '.join(deleted_titles)}")
+            return redirect('cart_view')
+        
+    cart_items = Cart.objects.filter(user=user)
+    context = {'cart_items': cart_items}
+    return render(request, 'cart_view.html', context)
