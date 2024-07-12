@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Your Cart{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/cart_view.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="cart-container">
+    <h1>Your Cart</h1>
+    <form method="post" action="{% url 'cart_view' %}">
+        {% csrf_token %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Select</th>
+                    <th>Item</th>
+                    <th>Quantity</th>
+                    <th>Item Price</th>
+                    <th>Total Price</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for item in cart_items %}
+                    <tr>
+                        <td><input type="checkbox" name="selected_items" value="{{ item.menuitem.id }}"></td>
+                        <td>{{ item.menuitem.title }}</td>
+                        <td>
+                            <form method="post" style="display: inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="menuitem_id" value="{{ item.menuitem.id }}">
+                                <button type="submit" name="update_quantity" value="{{ item.quantity|add:-1 }}" class="btn btn-sm btn-secondary">-</button>
+                                <input type="number" name="new_quantity" value="{{ item.quantity }}" min="1" max="{{ item.menuitem.inventory }}" class="quantity-input">
+                                <button type="submit" name="update_quantity" value="{{ item.quantity|add:1 }}" class="btn btn-sm btn-secondary">+</button>
+                            </form>
+                        </td>
+                        <td>{{ item.unit_price }}</td>
+                        <td>{{ item.price }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <button type="submit" name="remove_selected" class="btn btn-danger">Remove Selected Items</button>
+    </form>
+</div>
+{% endblock %}

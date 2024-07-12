@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.models import User
-from .models import Logger, UserComments, Category, MenuItem
+from .models import Logger, UserComments, Category, MenuItem, Cart
 
 class LogForm(forms.ModelForm):
     class Meta:
@@ -56,3 +56,12 @@ class MenuItemDeleteForm(forms.ModelForm):
     class Meta:
         model = MenuItem
         fields = ['slug']
+        
+
+class CartForm(forms.ModelForm):
+    menuitem_title = forms.CharField(max_length=255)
+    quantity = forms.IntegerField(min_value=1)
+    
+    class Meta:
+        mdoel = Cart
+        fields = ['menuitem', 'quantity']
