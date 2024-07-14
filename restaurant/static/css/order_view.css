@@ -1,0 +1,41 @@
+.orders-container {
+    margin-top: 2rem;
+}
+
+h1, h2 {
+    font-family: 'Markazi Text', serif;
+    color: #333333;
+}
+
+table {
+    width: 100%;
+    margin-top: 20px;
+    border-collapse: collapse;
+}
+
+table, th, td {
+    border: 1px solid #ddd;
+}
+
+th, td {
+    padding: 10px;
+    text-align: left;
+}
+
+th {
+    background-color: #f4f4f4;
+}
+
+.btn-primary {
+    background-color: #0f4a8a;
+    color: white;
+    border: none;
+    cursor: pointer;
+    padding: 10px 20px;
+    margin-top: 10px;
+    border-radius: 5px;
+}
+
+.btn-primary:hover {
+    background-color: #0d3e75;
+}

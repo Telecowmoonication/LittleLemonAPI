@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Order Details{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/order_details_view.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="order-details-container">
+    <h1>Order Details</h1>
+
+    <div class="order-info">
+        <p><strong>Order ID:</strong> {{ order.id }}</p>
+        <p><strong>Customer:</strong> {{ order.user.username }}</p>
+        <p><strong>Delivery Crew:</strong> {{ order.delivery_crew.username if order.delivery_crew else "Assigning crew member"  }}</p>
+        <p><strong>Ready for Delivery:</strong> {{ "Yes" if order.ready_for_delivery(value=1) else "No" }}</p>
+        <p><strong>Delivery Status:</strong> {{ "Delivered" if order.status(value=1) else "Out for delivery" }}</p>
+        <p><strong>Total:</strong> ${{ order.total }}</p>
+        <p><strong>Time:</strong> {{ order.time }}</p>
+    </div>
+
+    <h2>Order Items</h2>
+    <ul class="order-items">
+        {% for item in order.order_items %}
+            <li>{{ item.menuitem.title }} (x{{ item.quantity }}) - ${{ item.total_price }}</li>
+        {% endfor %}
+    </ul>
+
+    {% if user.groups.filter(name='Manager').exists() or (user.groups.filter(name='Employee').exists() and not user.groups.filter(name='Delivery Crew').exists()) or user.is_superuser %}
+        <h2>Update Ready for Delivery Status</h2>
+        <form method="post" action="{% url 'order_details_view' order.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="ready_for_delivery" value="{{ not order.ready_for_delivery }}">
+            <button type="submit" name="update_order" class="btn btn-primary">
+                Mark as {{ "Ready for Delivery" if not order.ready_for_delivery else "Not Ready for Delivery" }}
+            </button>
+        </form>
+    {% endif %}
+
+    {% if user.groups.filter(name='Manager').exists() or user.groups.filter(name='Delivery Crew').exists() or user.is_superuser %}
+        <h2>Update Order Delivery Status</h2>
+        <form method="post" action="{% url 'order_details_view' order.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="status" value="{{ not order.status }}">
+            <button type="submit" name="update_status" class="btn btn-primary">
+                Mark as {{ "Delivered" if not order.status else "Out for Delivery" }}
+            </button>
+        </form>
+    {% endif %}
+
+    {% if user.groups.filter(name='Manager').exists() or (user.groups.filter(name='Employee').exists() and not user.groups.filter(name='Delivery Crew').exists()) or user.is_superuser %}
+        <h2>Assign Delivery Crew Member</h2>
+        <form method="post" action="{% url 'order_details_view' order.id %}">
+            {% csrf_token %}
+            {{ assign_delivery_crew_form.as_p }}
+            <button type="submit" name="assign_delivery_crew" class="btn btn-primary">Assign Delivery Crew Member</button>
+        </form>
+    {% endif %}
+
+    {% if user.groups.filter(name='Manager').exists() or user.is_superuser %}
+        <h2>Delete Order</h2>
+        <form method="post" action="{% url 'order_details_view' order.id %}">
+            {% csrf_token %}
+            <button type="submit" name="delete_order" class="btn btn-danger">Delete Order</button>
+        </form>
+    {% endif %}
+</div>
+{% endblock %}

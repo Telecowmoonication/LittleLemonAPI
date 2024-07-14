@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Orders{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/orders_view.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="orders-container">
+    <h1>Orders</h1>
+
+    <h2>Place a New Order</h2>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" name="create_order" class="btn btn-primary">Place Order</button>
+    </form>
+
+    <h2>Order History</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Order ID</th>
+                <th>Status</th>
+                <th>Total</th>
+                <th>Time</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for order in orders %}
+                <tr>
+                    <td>{{ order.id }}</td>
+                    <td>{{ order.status|yesno:"Delivered,Out for Delivery" }}</td>
+                    <td>{{ order.total }}</td>
+                    <td>{{ order.time }}</td>
+                    <td><a href="{% url 'order_detail_view' order.id %}">View Order</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

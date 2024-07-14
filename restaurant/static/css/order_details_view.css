@@ -1,0 +1,74 @@
+.order-details-container {
+    margin: 0 auto;
+    padding: 20px;
+    max-width: 800px;
+}
+
+h1, h2 {
+    text-align: center;
+    font-family: 'Markazi Text', serif;
+}
+
+.order-info p {
+    font-size: 1.25rem;
+    margin: 10px 0;
+    font-family: 'Karla', sans-serif;
+}
+
+.order-items {
+    list-style: none;
+    padding: 0;
+    font-family: 'Karla', sans-serif;
+}
+
+.order-items li {
+    padding: 10px;
+    border-bottom: 1px solid #ccc;
+}
+
+.order-items li:last-child {
+    border-bottom: none;
+}
+
+form {
+    margin-top: 20px;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    background-color: #f9f9f9;
+}
+
+input[type="hidden"] {
+    display: none;
+}
+
+button {
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    cursor: pointer;
+    padding: 10px 20px;
+    margin-top: 10px;
+    border-radius: 5px;
+    font-size: 1rem;
+}
+
+button:hover {
+    background-color: #29742d;
+}
+
+.btn-danger {
+    background-color: #d9534f;
+}
+
+.btn-danger:hover {
+    background-color: #c9302c;
+}
+
+.btn-primary {
+    background-color: #0f4a8a;
+}
+
+.btn-primary:hover {
+    background-color: #0d3e75;
+}

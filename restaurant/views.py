@@ -18,8 +18,8 @@ from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework import status, viewsets, generics
 from decimal import Decimal
 from .models import Logger, UserComments, MenuItem, Category, Cart, Order, OrderItem
-from .forms import LogForm, CommentForm, EmployeeForm, ManagerForm, DeliveryCrewForm, CategoryForm, MenuItemForm, MenuItemDeleteForm, CartForm
-from .permissions import IsAdmin, IsEmployee, IsAdminOrManager, IsAdminOrManagerOrEmployee, IsOwnerOrAdminOrManager
+from .forms import LogForm, CommentForm, EmployeeForm, ManagerForm, DeliveryCrewForm, CategoryForm, MenuItemForm, MenuItemDeleteForm, CartForm, OrderUpdateForm, OrderAssignDeliveryCrewForm
+from .permissions import IsAdmin, IsEmployee, IsAdminOrManager, IsAdminOrManagerOrEmployee, IsOwnerOrAdminOrManager, IsEmployeeOrAssignedDeliveryCrewOrCustomerOrAdmin
 from .serializers import UserSerializer, UserRegSerializer, LoggerSerializer, UserCommentsSerializer, CategorySerializer, MenuItemSerializer, BookingSerializer, CartSerializer, OrderItemSerializer, OrderSerializer
 from datetime import datetime
 
@@ -1006,6 +1006,7 @@ def cart_api_view(request):
     # POST (remove_selected): Removes selcted item(s) from cart
 # Endpoint: /cart
 # View type: Function based, HTML
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
 def cart_view(request):
     user = request.user
     
@@ -1050,3 +1051,248 @@ def cart_view(request):
     cart_items = Cart.objects.filter(user=user)
     context = {'cart_items': cart_items}
     return render(request, 'cart_view.html', context)
+
+
+# Allows Employees other than Delivery Crew view all orders. Allows Delivery Crew to view only the orders assigned to them
+    # GET: Displays orders, 200
+# Allows users to create an order
+    # POST: Creates new order for current user, gets cart items, adds them to the order, then deletes them from the cart for the user, 201
+# Endpoint: /api/orders
+# View type: Function based, api
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated, IsEmployeeOrAssignedDeliveryCrewOrCustomerOrAdmin])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def orders_api_view(request):
+    user = request.user
+    
+    if request.method == 'GET':
+        if user.is_superuser or user.groups.filter(name='Employee').exists():
+            if user.groups.filter(name='Delivery Crew').exists():
+                # Delivery Crew can only view orders assigned to them
+                orders = Order.objects.filter(delivery_crew=user)
+            else:
+                # Employees (excluding Delivery Crew) can view all orders
+                orders = Order.objects.all()
+        else:
+            # Customers can view only their own orders
+            orders = Order.objects.filter(user=user)
+        
+        serializer = OrderSerializer(orders, many=True, context={'request', request})
+        return Response(serializer.data)
+    
+    elif request.method == 'POST':
+        cart_items = Cart.objects.filter(user=user)
+        if not cart_items.exists():
+            return Response({"message": "Cart is empty. Please add items to your cart to place an order."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        total = sum(item.menuitem.price * item.quantity for item in cart_items)
+        order_data = {
+            'user': user.id,
+            'status': False,
+            'ready_for_delivery': False,
+            'total': total,
+            'time': timezone.now().date()
+        }
+        serializer = OrderSerializer(data=order_data, context={'request': request})
+        if serializer.is_valid():
+            order = serializer.save()
+            for item in cart_items:
+                OrderItem.objects.create(order=order, menuitem=item.menuitem, quantity=item.quantity)
+            cart_items.delete()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+# Allows Employees other than Delivery Crew view all orders. Allows Delivery Crew to view only the orders assigned to them
+    # GET: Displays orders
+# Allows users to create an order
+    # POST: Creates new order for current user, gets cart items, adds them to the order, then deletes them from the cart for the user
+# Endpoint: /orders
+# View type: Function based, HTML
+@login_required
+@permission_classes([IsEmployeeOrAssignedDeliveryCrewOrCustomerOrAdmin])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def orders_view(request):
+    user = request.user
+    
+    if request.method == 'POST':
+        if 'create_order' in request.POST:
+            cart_items = Cart.objects.filter(user=user)
+            if not cart_items.exists():
+                messages.error(request, "Cart is empty. Please add items to your cart to place an order.")
+                return redirect('orders_view')
+        
+            total = sum(item.menuitem.price * item.quantity for item in cart_items)
+            order = Order.objects.create(
+                user=user,
+                status=False,
+                ready_for_delivery=False,
+                total=total,
+                time=timezone.now.date()
+            )
+        
+            for item in cart_items:
+                OrderItem.objects.create(order=order, menuitem=item.menuitem, quantity=item.quantity)
+                
+            cart_items.delete()
+            messages.success(request, "Order placed successfully.")
+            return redirect('orders_view')
+            
+    if user.is_superuser or user.groups.filter(name='Employee').exists():
+        if user.groups.filter(name='Delivery Crew').exists():
+            # Delivery Crew can only view orders assigned to them
+            orders = Order.objects.filter(delivery_crew=user)
+        else:
+            # Employees (excluding Delivery Crew) can view all orders
+            orders = Order.objects.all()
+    else:
+        # Customers can view only their own orders
+        orders = Order.objects.filter(user=user)
+        
+    context = {'orders': orders}
+    return render(request, 'orders_view.html', context)
+
+
+# Allows Admin, Employees, and the user who created the order to view the order details
+    # GET: Displays order details, 200
+# Allows Admin, Employees other than Delivery Crew to assign Delivery Crew to order
+    # PUT: Assigns Delivery Crew user to order, allowing them access to that order for various purposes, 200
+# Allows Admin and Employees other than Delivery Crew to update ready_for_delivery
+    # PATCH: Updates ready_for_delivery, 0 (False, not ready for delivery) or 1 (True, ready for delivery), 200
+# Allows Admin, Managers, or Delivery Crew to update order status
+    # PATCH: Updates order status, 0 (False, not yet delivered) or 1 (True, delivered), 200
+# Allows Admin or Managers to delete the order
+    # DELETE: Deletes order, 200
+@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
+@permission_classes([IsAuthenticated, IsEmployeeOrAssignedDeliveryCrewOrCustomerOrAdmin])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def order_details_api_view(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    
+    if request.method == 'GET':
+        serializer = OrderSerializer(order, context={'request': request})
+        return Response(serializer.data)
+    
+    elif request.method == 'PUT':
+        if not request.user.groups.filter(name='Delivery Crew').exists():
+            serializer = OrderSerializer(order, data=request.data, partial=True, context={'request': request})
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({"message": "Delivery Crew cannot assign Delivery Crew to orders."}, status=status.HTTP_403_FORBIDDEN)
+        
+    elif request.method == 'PATCH':
+        if 'ready_for_delivery' in request.data:
+            if not request.user.groups.filter(name='Delivery Crew').exists():
+                order.ready_for_delivery = request.data['ready_for_delivery']
+                order.save()
+                return Response({"message": "Order ready-for-delivery status updated."}, status=status.HTTP_200_OK)
+            else:
+                return Response({"message": "Delivery Crew cannot update this status."}, status=status.HTTP_403_FORBIDDEN)
+            
+        if 'status' in request.data:
+            if request.user.groups.filter(name='Manager').exists() or request.user.groups.filter(name='Delivery Crew').exists() or request.user.is_superuser:
+                order.status = request.data['status']
+                order.save()
+                return Response({"message": "Order delivery status updated."}, status=status.HTTP_200_OK)
+            else:
+                return Response({"message": "Only Delivery Crew, Managers, or Admin can update delivery status."}, status=status.HTTP_403_FORBIDDEN)
+            
+    elif request.method == 'DELETE':
+        if request.user.groups.filter(name='Manager').exists() or request.user.is_superuser:
+            order.delete()
+            return Response({"message": "Order deleted."}, status=status.HTTP_200_OK)
+        else:
+            return Response({"message": "Only Managers or Admin can delete orders."}, status=status.HTTP_403_FORBIDDEN)
+        
+
+# Allows Admin, Employees, and the user who created the order to view the order details
+    # GET: Displays order details
+# Allows Admin, Employees other than Delivery Crew to assign Delivery Crew to order
+    # POST: Assigns Delivery Crew user to order, allowing them access to that order for various purposes
+# Allows Admin and Employees other than Delivery Crew to update ready_for_delivery
+    # POST: Updates ready_for_delivery, 0 (False, not ready for delivery) or 1 (True, ready for delivery)
+# Allows Admin, Managers, or Delivery Crew to update order status
+    # POST: Updates order status, 0 (False, not yet delivered) or 1 (True, delivered)
+# Allows Admin or Managers to delete the order
+    # POST: Deletes order
+@login_required
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def order_details_view(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    user = request.user
+    
+    # Checks if user has permission to view the order
+    if not IsEmployeeOrAssignedDeliveryCrewOrCustomerOrAdmin().has_permission(request, view=None):
+        messages.error(request, "You do not have permission to view this order.")
+        return redirect('orders_view')
+    
+    if request.method == "POST":
+        if 'update_order' in request.POST:
+            # Only Employees (excluding Delivery Crew) and Admin can update ready_for_delivery
+            if user.groups.filter(name='Delivery Crew').exists() and not user.is_superuser:
+                messages.error(request, "You do not have permission to update this order.")
+            else:
+                form = OrderUpdateForm(request.POST, instance=order)
+                if form.is_valid():
+                    form.save()
+                    messages.success(request, "Ready for Delivery status updated successfully.")
+                else:
+                    messages.error(request, "There was an error updating Ready for Delivery status for this order.")
+                    
+        elif 'assign_delivery_crew' in request.POST:
+            # Only Employees (excluding Delivery Crew) and Admin can assign Delivery Crew to orders
+            if user.groups.filter(name='Delivery Crew').exists() and not user.is_superuser:
+                messages.error(request, "You do not have permission to assign Delivery Crew to orders.")
+            else:
+                form = OrderAssignDeliveryCrewForm(request.POST)
+                if form.is_valid():
+                    delivery_crew_username = form.cleaned_data.get('delivery_crew_username')
+                    try:
+                        delivery_crew = User.objects.get(username=delivery_crew_username)
+                        if not delivery_crew.groups.filter(name='Delivery Crew').exists():
+                            messages.error(request, "User is not a Delivery Crew member.")
+                        else:
+                            order.delivery_crew = delivery_crew
+                            order.save()
+                            messages.success(request, "Delivery Crew assigned successfully.")
+                    except User.DoesNotExist:
+                        messages.error(request, "User not found.")
+                else:
+                    messages.error(request, "There was an error assigning the delivery crew.")
+            
+        elif 'update_status' in request.POST:
+            # Only Managers, Delivery Crew, or Admin can update order status
+            if user.groups.filter(name='Manager').exists() or user.groups.filter(name='Delivery Crew').exists() or user.is_superuser:
+                form = OrderUpdateForm(request.POST, instance=order)
+                if form.is_valid():
+                    form.save()
+                    messages.success(request, "Order delivery status updated successfully.")
+                else:
+                    messages.error(request, "There was an error updating the order delivery status.")
+            else:
+                messages.error(request, "You do not have permission to update the order delivery status.")
+        
+        elif 'delete_order' in request.POST:
+            # Only Managers or Admin can delete orders
+            if user.groups.filter(name='Manager').exists() or user.is_superuser:
+                order.delete()
+                messages.success(request, "Order deleted successfully.")
+                return redirect('orders_view')
+            else:
+                messages.error(request, "You do not have permission to delete this order.")
+                
+        return redirect('order_details_view', order_id=order.id)
+    
+    order_update_form = OrderUpdateForm(instance=order)
+    assign_delivery_crew_form = OrderAssignDeliveryCrewForm()
+    
+    context = {
+        'order': order,
+        'order_update_form': order_update_form,
+        'assign_delivery_crew_form': assign_delivery_crew_form
+    }
+    
+    return render(request, 'order_details_view.html', context)
