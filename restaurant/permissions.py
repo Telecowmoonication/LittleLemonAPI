@@ -57,3 +57,25 @@ class IsOwnerOrEmployeeOrAdmin(BasePermission):
         return bool(obj.first_name == request.user.first_name and
                     obj.last_name == request.user.last_name or
                     is_employee or request.user.is_superuser)
+        
+        
+class IsEmployeeOrAssignedDeliveryCrewOrCustomerOrAdmin(BasePermission):
+    def has_permission(self, request, view):
+        user = request.user
+        if user.is_superuser:
+            return True
+        if user.groups.filter(name='Employee').exists():
+            return True
+        if user.groups.filter(name='Delivery Crew').exists():
+            return True
+        return True
+    
+    def has_object_permission(self, request, view, obj):
+        user = request.user
+        if user.is_superuser:
+            return True
+        if user.groups.filter(name='Employee').exists():
+            return True
+        if user.groups.filter(name='Delivery Crew').exists():
+            return obj.delivery_crew == user
+        return obj.user == user

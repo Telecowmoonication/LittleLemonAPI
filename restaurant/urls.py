@@ -39,10 +39,10 @@ urlpatterns = [
     path('menu-item/delete/<slug:slug>', views.menu_item_delete_view, name='menu_item_delete_view'), # HTML view to delete menu items
     path('api/cart', views.cart_api_view, name='cart_api_view'), # API view to display, add, delete items in user cart
     path('cart', views.cart_view, name='cart_view'), # HTML view to display, update, delete items in user cart
-    path(),
-    path(),
-    path(),
-    path(),
+    path('api/orders', views.orders_api_view, name='orders_api_view'), # API view to display and create orders
+    path('orders', views.orders_view, name='orders_view'), # HTML view to display and create orders
+    path('api/orders/<int:order_id>', views.order_details_api_view, name='order_details_api_view'), # API view to display, update, and delete orders
+    path('orders/<int:order_id>', views.order_details_view, name='order_details_view'), # HTML view to display, update, and delete orders
     path(),
     path(),
 ]
