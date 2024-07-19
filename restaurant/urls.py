@@ -43,6 +43,10 @@ urlpatterns = [
     path('orders', views.orders_view, name='orders_view'), # HTML view to display and create orders
     path('api/orders/<int:order_id>', views.order_details_api_view, name='order_details_api_view'), # API view to display, update, and delete orders
     path('orders/<int:order_id>', views.order_details_view, name='order_details_view'), # HTML view to display, update, and delete orders
+    path('api/booking', views.booking_api_view, name='booking_api_view'), # API view for users to book a reservation
+    path('booking', views.booking_view, name='booking_view'), # HTML view for users to book a reservation
+    path(),
+    path(),
     path(),
     path(),
 ]

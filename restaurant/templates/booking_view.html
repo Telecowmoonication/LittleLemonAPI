@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Book a Reservation{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/booking_view.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="booking-container">
+    <h1>Book a Reservation</h1>
+    <p>The Little Lemon Restaurant is <span>imaginarily</span> open 7 days a week, except for public holidays.</p>
+    <ul>
+        <li>Mon-Fri: {{ business_hours.Mon-Fri }}</li>
+        <li>Sat: {{ business_hours.Sat }}</li>
+        <li>Sun: {{ business_hours.Sun }}</li>
+    </ul>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Book Now</button>
+    </form>
+</div>
+{% endblock %}

@@ -18,7 +18,7 @@ from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework import status, viewsets, generics
 from decimal import Decimal
 from .models import Logger, UserComments, MenuItem, Category, Cart, Order, OrderItem
-from .forms import LogForm, CommentForm, EmployeeForm, ManagerForm, DeliveryCrewForm, CategoryForm, MenuItemForm, MenuItemDeleteForm, CartForm, OrderUpdateForm, OrderAssignDeliveryCrewForm
+from .forms import LogForm, CommentForm, EmployeeForm, ManagerForm, DeliveryCrewForm, CategoryForm, MenuItemForm, MenuItemDeleteForm, CartForm, OrderUpdateForm, OrderAssignDeliveryCrewForm, BookingForm
 from .permissions import IsAdmin, IsEmployee, IsAdminOrManager, IsAdminOrManagerOrEmployee, IsOwnerOrAdminOrManager, IsEmployeeOrAssignedDeliveryCrewOrCustomerOrAdmin
 from .serializers import UserSerializer, UserRegSerializer, LoggerSerializer, UserCommentsSerializer, CategorySerializer, MenuItemSerializer, BookingSerializer, CartSerializer, OrderItemSerializer, OrderSerializer
 from datetime import datetime
@@ -1163,6 +1163,8 @@ def orders_view(request):
     # PATCH: Updates order status, 0 (False, not yet delivered) or 1 (True, delivered), 200
 # Allows Admin or Managers to delete the order
     # DELETE: Deletes order, 200
+# Endpoint: /api/orders/<int:order_id>
+# View type: Function based, api
 @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
 @permission_classes([IsAuthenticated, IsEmployeeOrAssignedDeliveryCrewOrCustomerOrAdmin])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
@@ -1218,6 +1220,8 @@ def order_details_api_view(request, order_id):
     # POST: Updates order status, 0 (False, not yet delivered) or 1 (True, delivered)
 # Allows Admin or Managers to delete the order
     # POST: Deletes order
+# Endpoint: /orders/<int:order_id>
+# View type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def order_details_view(request, order_id):
@@ -1296,3 +1300,78 @@ def order_details_view(request, order_id):
     }
     
     return render(request, 'order_details_view.html', context)
+
+
+# Business hours dictionary with days as keys and tuples of open and close hours as values
+BUSINESS_HOURS = {
+    0: (11, 21), # Monday
+    1: (11, 21), # Tuesday
+    2: (11, 21), # Wednesday
+    3: (11, 21), # Thursday
+    4: (11, 21), # Friday
+    5: (11, 22), # Saturday
+    6: (12, 20) # Sunday
+}
+
+
+# Allows anyone to book a reservation during business hours (up to 1 hour before close)
+    # POST: Creates a booking, 201
+# Endpoint: /api/bookings
+# View type: Function based, api
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def booking_api_view(request):
+    serializer = BookingSerializer(data=request.data)
+    if serializer.is_valid():
+        booking_date = serializer.validated_data['booking_date']
+        day_of_week = booking_date.weekday()
+        open_hour, close_hour = BUSINESS_HOURS[day_of_week]
+        
+        if not open_hour <= booking_date.hour < close_hour -1:
+            return Response(
+                {"message": "Bookings can only be made during business hours and up to an hour before closing."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# Allows anyone to view the booking page
+    # GET: Displays booking page
+# Allows anyone to book a reservation during business hours (up to 1 hour before close)
+    # POST: Creates a reservation
+# Endpoint: /bookings
+# View type: Function based, HTML
+@permission_classes([AllowAny])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def booking_view(request):
+    form = BookingForm()
+    
+    if request.method == 'POST':
+        form = BookingForm(request.POST)
+        if form.is_valid():
+            booking_date = form.cleaned_data['booking_date']
+            day_of_week = booking_date.weekday()
+            
+            open_hour, close_hour = BUSINESS_HOURS[day_of_week]
+            
+            if not (open_hour <= booking_date.hour < close_hour - 1):
+                messages.error(request, "Bookings can only be made during business hours and up to an hour before closing.")
+            else:
+                form.save()
+                messages.success(request, "Booking made successfully.")
+                return redirect('reservation_details_view')
+        else:
+            messages.error(request, "There was an error with your booking.")
+            
+    business_hours = {
+        'Mon-Fri': '11am - 9pm',
+        'Sat': '11am - 10pm',
+        'sun': '12pm - 8pm'
+    }
+    
+    context = {'form': form, 'business_hours': business_hours}
+    
+    return render(request, 'booking_view.html', context)
