@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
-from .models import Logger, UserComments, Category, MenuItem, Cart, Order
+from .models import Logger, UserComments, Category, MenuItem, Cart, Order, Booking
+import datetime
 
 class LogForm(forms.ModelForm):
     class Meta:
@@ -95,3 +96,32 @@ class OrderAssignDeliveryCrewForm(forms.Form):
         labels = {
             'delivery_crew_username': 'Delivery Crew Username'
         }
+        
+        
+class BookingForm(forms.ModelForm):
+    class Meta:
+        model = Booking
+        fields = ['name', 'no_of_guests', 'booking_date']
+        
+    def clean_booking_date(self):
+        booking_date = self.cleaned_data['booking_date']
+        days_of_week = booking_date.weekday()
+        BUSINESS_HOURS = {
+            0: (11, 21), # Monday
+            1: (11, 21), # Tuesday
+            2: (11, 21), # Wednesday
+            3: (11, 21), # Thursday
+            4: (11, 21), # Friday
+            5: (11, 22), # Saturday
+            6: (12, 20) # Sunday
+        }
+        
+        open_hour, close_hour = BUSINESS_HOURS[days_of_week]
+        
+        if not (open_hour <= booking_date.hour < close_hour -1):
+            raise forms.ValidationError("Bookings can only be made during business hours and up to an hour before closing.")
+        
+        if booking_date < datetime.datetime.now():
+            raise forms.ValidationError("Booking date must be in the future.")
+        
+        return booking_date
