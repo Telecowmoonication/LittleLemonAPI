@@ -1,38 +1,74 @@
 .manager-container {
-    margin-top: 2rem;
+    margin: 0 auto;
+    padding: 20px;
+    max-width: 800px;
 }
 
-
-.alert {
-    margin-top: 1rem;
-    padding: 1rem;
-    border: 1px solid #ccc;
-    border-radius: 5px;
+.manager-container h1, 
+.manager-container h2 {
+    text-align: center;
+    margin-bottom: 20px;
 }
 
-.btn {
-    margin-top: 1rem;
-    padding: 0.5rem 1rem;
-    font-size: 1rem;
+.manager-container form {
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.manager-container button {
+    display: inline-block;
+    margin: 10px auto;
+    padding: 10px 20px;
+    font-size: 1.25rem;
+    background-color: #007bff;
     color: #fff;
     border: none;
-    border-radius: 5px;
     cursor: pointer;
+    text-align: center;
+    border-radius: 5px;
 }
 
-.btn-primary {
-    background-color: #0f4a8a;
+.manager-container button.btn-danger {
+    background-color: #dc3545;
 }
 
-.btn-primary:hover {
-
-    background-color: #0d3e75;
+.manager-container button:hover {
+    background-color: #0056b3;
 }
 
-.btn-danger {
-    background-color: #d9534f;
+.manager-container button.btn-danger:hover {
+    background-color: #c82333;
 }
 
-.btn-danger:hover {
-    background-color: #c9302c;
+.manager-container table {
+    width: 100%;
+    margin-top: 20px;
+    border-collapse: collapse;
+    font-size: 1.25rem;
+}
+
+.manager-container table, 
+.manager-container th, 
+.manager-container td {
+    border: 1px solid #ddd;
+}
+
+.manager-container th, 
+.manager-container td {
+    padding: 10px;
+    text-align: left;
+}
+
+.manager-container th {
+    background-color: #f4f4f4;
+}
+
+.manager-container ul {
+    list-style: none;
+    padding: 0;
+    text-align: center;
+}
+
+.manager-container ul li {
+    margin: 5px 0;
 }

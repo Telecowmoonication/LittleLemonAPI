@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Past Reservations{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/old_reservations_view.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="reservations-container">
+    <h1>Past Reservations</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Number of Guests</th>
+                <th>Booking Date</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for booking in bookings %}
+                <tr>
+                    <td><a href="{% url 'reservation_details_view' booking.id %}">{{ booking.name }}</a></td>
+                    <td>{{ booking.no_of_guests }}</td>
+                    <td>{{ booking.booking_date }}</td>
+                    <td>{{ booking.status }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

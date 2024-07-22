@@ -32,7 +32,7 @@
             {% for order in orders %}
                 <tr>
                     <td>{{ order.id }}</td>
-                    <td>{{ order.status|yesno:"Delivered,Out for Delivery" }}</td>
+                    <td>{{ order.order_status|yesno:"Delivered,Out for Delivery" }}</td>
                     <td>{{ order.total }}</td>
                     <td>{{ order.time }}</td>
                     <td><a href="{% url 'order_detail_view' order.id %}">View Order</td>

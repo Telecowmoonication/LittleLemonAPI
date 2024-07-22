@@ -1,18 +1,56 @@
-form {
-    width: 300px;
+.delivery-crew-container {
     margin: 0 auto;
-    padding: 1rem;
-    border: 1px solid #ccc;
+    padding: 20px;
+    max-width: 800px;
+}
+
+.delivery-crew-container h1, 
+.delivery-crew-container h2 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.delivery-crew-container form {
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.delivery-crew-container button {
+    display: inline-block;
+    margin: 10px auto;
+    padding: 10px 20px;
+    font-size: 1.25rem;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    text-align: center;
     border-radius: 5px;
-    background: #f9f9f9;
 }
 
-ul {
-    list-style-type: none;
-    padding: 0;
+.delivery-crew-container button:hover {
+    background-color: #0056b3;
 }
 
-li {
+.delivery-crew-container table {
+    width: 100%;
+    margin-top: 20px;
+    border-collapse: collapse;
+    font-size: 1.25rem;
+}
+
+.delivery-crew-container table, 
+.delivery-crew-container th, 
+.delivery-crew-container td {
+    border: 1px solid #ddd;
+}
+
+.delivery-crew-container th, 
+.delivery-crew-container td {
     padding: 10px;
-    border-bottom: 1px solid #ccc;
+    text-align: left;
+}
+
+.delivery-crew-container th {
+    background-color: #f4f4f4;
 }

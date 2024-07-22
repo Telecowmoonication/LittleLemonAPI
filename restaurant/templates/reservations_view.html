@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Current Reservations{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% status 'css/reservations_view.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="reservations-container">
+    <h1>Current Reservations</h1>
+    {% if no_reservations_message %}
+        <p>{{ no_reservations_message }}</p>
+    {% else %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Number of Guests</th>
+                    <th>Booking Date</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for booking in bookings %}
+                    <tr>
+                        <td><a href="{% url 'reservation_details_view' booking.id %}">{{ booking.name }}</a></td>
+                        <td>{{ booking.no_of_guests }}</td>
+                        <td>{{ booking.booking_date }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+{% endblock %}

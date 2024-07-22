@@ -4,30 +4,55 @@
     max-width: 800px;
 }
 
-form {
-    width: 300px;
-    margin: 20px auto;
-    padding: 20px;
-    border: 1px solid #ccc;
-    border-radius: 10px;
+.logger-container h1, 
+.logger-container h2 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.logger-container form {
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.logger-container button {
+    display: inline-block;
+    margin: 10px auto;
+    padding: 10px 20px;
+    font-size: 1.25rem;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    text-align: center;
+    border-radius: 5px;
+}
+
+.logger-container button:hover {
+    background-color: #0056b3;
 }
 
 /* border-collapse property sets if table borders collapse into a single border or are seperated as in standard HTML */
-table {
+.logger-container table {
     width: 100%;
     margin-top: 20px;
     border-collapse: collapse;
+    font-size: 1.25rem;
 }
 
-table, th, td {
+.logger-container table, 
+.logger-container th, 
+.logger-container td {
     border: 1px solid #ddd;
 }
 
-th, td {
+.logger-container th, 
+.logger-container td {
     padding: 10px;
     text-align: left;
 }
 
-th {
+.logger-container th {
     background-color: #f4f4f4;
 }
+

@@ -74,14 +74,14 @@ class Cart(models.Model):
 class Order(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     delivery_crew = models.ForeignKey(User, on_delete=models.SET_NULL, related_name="delivery_crew", null=True)
-    status = models.BooleanField(db_index=True, default=False)
+    order_status = models.BooleanField(db_index=True, default=False)
     ready_for_delivery = models.BooleanField(db_index=True, default=False)
     total = models.DecimalField(max_digits=6, decimal_places=2)
     time = models.DateField(db_index=True)
     
     def __str__(self)-> str:
         delivery_crew_username = self.delivery_crew.username if self.delivery_crew else "Not assigned"
-        status_str = "Delivered" if self.status else "Out for Delivery"
+        status_str = "Delivered" if self.order_status else "Out for Delivery"
         return f'Order {self.id} by {self.user.username} - Delivery Crew: {delivery_crew_username} (Status: {status_str})'
     
     # For deleting items from the cart once the order is placed.
@@ -105,9 +105,15 @@ class OrderItem(models.Model):
 
 # For booking a reservation
 class Booking(models.Model):
+    STATUS_CHOICES = [
+        ('current', 'Current'),
+        ('completed', 'Completed'),
+        ('missed', 'Missed'),
+    ]
     name = models.CharField(max_length=255, help_text="Enter First and Last name please.")
     no_of_guests = models.IntegerField(default=1)
     booking_date = models.DateTimeField()
+    reservation_status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='current')
     
     def __str__(self)-> str:
         return f'Reservation by {self.name} for {self.no_of_guests}'

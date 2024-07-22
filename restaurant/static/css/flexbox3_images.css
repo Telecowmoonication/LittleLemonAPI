@@ -1,22 +1,14 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-img {
-    border: 0;
-}
-
-/* justify-content aligns a flexible container's items when the items do not use all available horizontal space (align-items for verticle) */
-/* space-between distributes items evenly, first item flush with start, last item flush with end */
 .images-container {
     display: flex;
     flex-wrap: wrap;
-    justify-content: space-between;
-    padding: 5px;
+    justify-content: center;
+    gap: 20px;
+    padding: 20px;
+    background-color: #f4f4f4;
+    border-radius: 5px;
 }
 
-.item {
-    margin: 5px;
+.images-container img.item {
+    border-radius: 5px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }

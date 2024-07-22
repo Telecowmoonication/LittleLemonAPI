@@ -1,0 +1,33 @@
+.reservations-container {
+    margin: 0 auto;
+    padding: 20px;
+    max-width: 800px;
+}
+
+.reservations-container h1 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.reservations-container table {
+    width: 100%;
+    margin-top: 20px;
+    border-collapse: collapse;
+    font-size: 1.25rem;
+}
+
+.reservations-container table,
+.reservations-container th,
+.reservations-container td {
+    border: 1px solid #ddd;
+}
+
+.reservations-container th,
+.reservations-container td {
+    padding: 10px;
+    text-align: left;
+}
+
+.reservations-container th {
+    background-color: #f4f4f4;
+}

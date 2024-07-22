@@ -1,71 +1,56 @@
 .cart-container {
-    margin-top: 2rem;
+    margin: 0 auto;
+    padding: 20px;
+    max-width: 800px;
 }
 
-h1 {
-    font-family: 'Markazi Text', serif;
-    color: #333333;
+.cart-container h1 {
+    text-align: center;
 }
 
-table {
+.cart-container table {
     width: 100%;
     margin-top: 20px;
     border-collapse: collapse;
+    font-size: 1.25rem;
 }
 
-table, th, td {
+.cart-container table, 
+.cart-container th, 
+.cart-container td {
     border: 1px solid #ddd;
 }
 
-th, td {
+.cart-container th, 
+.cart-container td {
     padding: 10px;
     text-align: left;
 }
 
-th {
+.cart-container th {
     background-color: #f4f4f4;
 }
 
-.quantity-input {
-    width: 60px;
-    text-align: center;
+.cart-container input[type="checkbox"] {
+    display: block;
+    margin: 0 auto;
 }
 
-.btn {
-    margin-top: 1rem;
-    padding: 0.5rem 1rem;
-    font-size: 1rem;
+.cart-container .btn {
+    margin: 10px 5px;
+    padding: 5px 10px;
+    background-color: #007bff;
     color: #fff;
     border: none;
-    border-radius: 5px;
     cursor: pointer;
+    border-radius: 5px;
 }
 
-.btn-sm {
-    padding: 0.2rem 0.5rem;
-    font-size: 0.875rem;
+.cart-container .btn:hover {
+    background-color: #0056b3;
 }
 
-.btn-primary {
-    background-color: #0f4a8a;
-}
-
-.btn-primary:hover {
-    background-color: #0d3e75;
-}
-
-.btn-danger {
-    background-color: #d9534f;
-}
-
-.btn-danger:hover {
-    background-color: #c9302c;
-}
-
-.btn-secondary {
-    background-color: #6c757d;
-}
-
-.btn-secondary:hover {
-    background-color: #5a6268;
+.cart-container .quantity-input {
+    width: 50px;
+    text-align: center;
 }

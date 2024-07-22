@@ -79,3 +79,14 @@ class IsEmployeeOrAssignedDeliveryCrewOrCustomerOrAdmin(BasePermission):
         if user.groups.filter(name='Delivery Crew').exists():
             return obj.delivery_crew == user
         return obj.user == user
+    
+    
+class IsAdminOrEmployeeButNotDeliveryCrew(BasePermission):
+    def has_permission(self, request, view):
+        user = request.user
+        if user.is_authenticated:
+            if user.is_superuser:
+                return True
+            if user.groups.filter(name='Employee').exists() and not user.groups.filter(name='Delivery Crew').exists():
+                return True
+        return False
