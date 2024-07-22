@@ -2,61 +2,42 @@
     margin: 0 auto;
     padding: 20px;
     max-width: 800px;
-    font-family: 'Karla', sans-serif;
 }
 
-h1, h2 {
+.booking-container h1 {
     text-align: center;
-    font-family: 'Markazi Text', serif;
 }
 
-p span {
-    font-weight: bold;
+.booking-container p {
+    text-align: center;
 }
 
-ul {
+.booking-container ul {
     list-style: none;
     padding: 0;
-    font-size: 1.25rem;
-    margin: 10px 0;
+    text-align: center;
 }
 
-ul li {
-    padding: 5px 0;
+.booking-container ul li {
+    margin: 5px 0;
 }
 
-form {
-    width: 100%;
-    margin: 20px 0;
-    padding: 20px;
-    border: 1px solid #ccc;
-    border-radius: 10px;
-    background-color: #f9f9f9;
-}
-
-label {
-    font-weight: bold;
+.booking-container button {
     display: block;
-    margin-top: 10px;
-}
-
-input, select, button {
-    width: 100%;
-    padding: 10px;
-    margin-top: 5px;
-    box-sizing: border-box;
-}
-
-button {
-    background-color: #4caf50;
-    color: white;
+    margin: 20px auto;
+    padding: 10px 20px;
+    font-size: 1.25rem;
+    background-color: #007bff;
+    color: #fff;
     border: none;
     cursor: pointer;
-    padding: 10px 20px;
-    margin-top: 10px;
     border-radius: 5px;
 }
 
-button:hover {
-    background-color: #29742d;
+.booking-container button:hover {
+    background-color: #0056b3;
+}
+
+.booking-container span {
+    font-weight: bold;
 }

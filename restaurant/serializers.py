@@ -278,7 +278,7 @@ class OrderSerializer(serializers.HyperlinkedModelSerializer):
     
     class Meta:
         model = Order
-        fields = ['url', 'id', 'user', 'user_username', 'delivery_crew', 'delivery_crew_username', 'status', 'ready_for_delivery', 'total', 'time', 'order_items', 'total_calculated']
+        fields = ['url', 'id', 'user', 'user_username', 'delivery_crew', 'delivery_crew_username', 'order_status', 'ready_for_delivery', 'total', 'time', 'order_items', 'total_calculated']
         read_only_fields = ['id', 'user', 'user_username', 'total_calculated', 'order_items']
         extra_kwargs = {
             'total': {'min_value': Decimal('0.01'), 'error_messages':{'min_value': 'Total must be greater than $0.00.'}},
@@ -332,7 +332,7 @@ class BookingSerializer(serializers.HyperlinkedModelSerializer):
     
     class Meta:
         model = Booking
-        fields = ['url', 'id', 'name', 'no_of_guests', 'booking_date']
+        fields = ['url', 'id', 'name', 'no_of_guests', 'booking_date', 'reservation_status']
         read_only_fields = ['id']
         
     def validate_no_of_guests(self, value):

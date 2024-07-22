@@ -4,71 +4,58 @@
     max-width: 800px;
 }
 
-h1, h2 {
+.order-details-container h1 {
     text-align: center;
-    font-family: 'Markazi Text', serif;
+    margin-bottom: 20px;
 }
 
-.order-info p {
+.order-details-container .order-info {
+    margin-bottom: 20px;
+}
+
+.order-details-container p {
     font-size: 1.25rem;
-    margin: 10px 0;
-    font-family: 'Karla', sans-serif;
+    margin-bottom: 10px;
 }
 
-.order-items {
+.order-details-container h2 {
+    margin-top: 20px;
+}
+
+.order-details-container ul {
     list-style: none;
     padding: 0;
-    font-family: 'Karla', sans-serif;
 }
 
-.order-items li {
-    padding: 10px;
-    border-bottom: 1px solid #ccc;
+.order-details-container ul li {
+    margin-bottom: 10px;
 }
 
-.order-items li:last-child {
-    border-bottom: none;
+.order-details-container form {
+    margin-bottom: 20px;
+    text-align: center;
 }
 
-form {
-    margin-top: 20px;
-    padding: 20px;
-    border: 1px solid #ccc;
-    border-radius: 10px;
-    background-color: #f9f9f9;
-}
-
-input[type="hidden"] {
-    display: none;
-}
-
-button {
-    background-color: #4caf50;
-    color: white;
+.order-details-container button {
+    display: inline-block;
+    margin: 10px auto;
+    padding: 10px 20px;
+    font-size: 1.25rem;
+    background-color: #007bff;
+    color: #fff;
     border: none;
     cursor: pointer;
-    padding: 10px 20px;
-    margin-top: 10px;
     border-radius: 5px;
-    font-size: 1rem;
 }
 
-button:hover {
-    background-color: #29742d;
+.order-details-container button.btn-danger {
+    background-color: #dc3545;
 }
 
-.btn-danger {
-    background-color: #d9534f;
+.order-details-container button:hover {
+    background-color: #0056b3;
 }
 
-.btn-danger:hover {
-    background-color: #c9302c;
-}
-
-.btn-primary {
-    background-color: #0f4a8a;
-}
-
-.btn-primary:hover {
-    background-color: #0d3e75;
+.order-details-container button.btn-danger:hover {
+    background-color: #c82333;
 }

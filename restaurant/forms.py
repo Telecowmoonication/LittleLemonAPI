@@ -72,19 +72,19 @@ class CartForm(forms.ModelForm):
 # class OrderForm(forms.ModelForm):
 #     class Meta:
 #         model = Order
-#         fields = ['user', 'delivery_crew', 'status', 'ready_for_delivery', 'total', 'time']
+#         fields = ['user', 'delivery_crew', 'order_status', 'ready_for_delivery', 'total', 'time']
         
         
 class OrderUpdateForm(forms.ModelForm):
     class Meta:
         model = Order
-        fields = ['status', 'ready_for_delivery']
+        fields = ['order_status', 'ready_for_delivery']
         widgets = {
-            'status': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'order_status': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'ready_for_delivery': forms.CheckboxInput(attrs={'class': 'form-check-input'})
         }
         labels = {
-            'status': 'Delivered',
+            'order_status': 'Delivered',
             'ready_for_delivery': 'Ready for Delivery'
         }
         
@@ -125,3 +125,13 @@ class BookingForm(forms.ModelForm):
             raise forms.ValidationError("Booking date must be in the future.")
         
         return booking_date
+    
+    
+class ReservationStatusForm(forms.ModelForm):
+    class Meta:
+        model = Booking
+        fields = ['reservation_status']
+        
+
+class DeleteReservationForm(forms.Form):
+    confirm_deletion = forms.BooleanField(required=True)

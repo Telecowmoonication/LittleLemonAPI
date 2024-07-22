@@ -2,6 +2,10 @@
 
 {% block title %}Search Results{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/search_results.css' %}">
+{% endblock %}
+
 {% block contents %}
 <h1>Search Results for "{{ query }}"</h1>
 
