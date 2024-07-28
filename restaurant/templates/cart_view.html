@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% load static %}
+
 {% block title %}Your Cart{% endblock %}
 
 {% block extra_css %}
@@ -18,7 +20,7 @@
                     <th>Item</th>
                     <th>Quantity</th>
                     <th>Item Price</th>
-                    <th>Total Price</th>
+                    <th>Price</th>
                 </tr>
             </thead>
 
@@ -41,6 +43,17 @@
                     </tr>
                 {% endfor %}
             </tbody>
+
+            <tfoot>
+                <tr>
+                    <td colspan="4">Subtotal</td>
+                    <td>{{ cart_subtotal }}</td>
+                </tr>
+                <tr>
+                    <td colspan="4">Total (including tax)</td>
+                    <td>{{ cart_price_with_tax }}</td>
+                </tr>
+            </tfoot>
         </table>
         <button type="submit" name="remove_selected" class="btn btn-danger">Remove Selected Items</button>
     </form>

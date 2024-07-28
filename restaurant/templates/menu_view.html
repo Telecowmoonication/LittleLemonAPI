@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% load static %}
+
 {% block title %}Menu{% endblock %}
 
 {% block extra_css %}
@@ -30,7 +32,7 @@
             <tbody>
                 {% for item in menu_items %}
                     <tr>
-                        <td><a href="{% url 'menu_item_detail_view' item.slug %}">{{ item.title }}</a></td>
+                        <td><a href="{% url 'menu_item_view' item.slug %}">{{ item.title }}</a></td>
                         <td>{{ item.price }}</td>
                         <td>
                             {{ cart_form.as_p }}

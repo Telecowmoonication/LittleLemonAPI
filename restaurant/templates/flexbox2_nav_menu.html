@@ -1,8 +1,8 @@
 <!-- Does not need <!DOCTYPE html>, {% load static %}, and other tags like <html>, <head>, and <body> because they will be included in the base.html -->
 <ul class="nav-container">
-    <li><a href="{% url '' %}">Home</a></li>
-    <li><a href="{% url 'menu_items' %}">Menu</a></li>
-    <li><a href="{% url 'booking' %}">Book</a></li>
-    <li><a href="{% url 'accounts/login' %}">Login</a></li>
-    <li><a href="{% url 'logger' %}">Staff Log</a></li>
+    <li><a href="{% url 'index' %}">Home</a></li>
+    <li><a href="{% url 'menu_view' %}">Menu</a></li>
+    <li><a href="{% url 'booking_view' %}">Book</a></li>
+    <li><a href="{% url 'login' %}">Login</a></li>
+    <li><a href="{% url 'logger_view' %}">Staff Log</a></li>
 </ul>

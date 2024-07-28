@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% load static %}
+
 {% block title %}Orders{% endblock %}
 
 {% block extra_css %}
@@ -22,6 +24,7 @@
             <tr>
                 <th>Order ID</th>
                 <th>Status</th>
+                <th>Subtotal</th>
                 <th>Total</th>
                 <th>Time</th>
                 <th>Details</th>
@@ -33,7 +36,8 @@
                 <tr>
                     <td>{{ order.id }}</td>
                     <td>{{ order.order_status|yesno:"Delivered,Out for Delivery" }}</td>
-                    <td>{{ order.total }}</td>
+                    <td>{{ order.subtotal }}</td>
+                    <td>{{ order.price_after_tax }}</td>
                     <td>{{ order.time }}</td>
                     <td><a href="{% url 'order_detail_view' order.id %}">View Order</td>
                 </tr>

@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% load static %}
+
 {% block title %}Little Lemon - Home{% endblock %}
 
 {% block content %}
@@ -7,7 +9,7 @@
     <article id="hero">
         <h1 class="heading-shadow">SPECIAL OFFER</h1>
         <p>30% Off This Weekend</p>
-        <a href="{% url 'booking' %}" class="cta">Book now</a>
+        <a href="{% url 'booking_view' %}" class="cta">Book now</a>
     </article>
 </section>
 
@@ -15,15 +17,15 @@
     <article>
         <h2>Our New Menu</h2>
         <img src="{% static 'images/lemon_cake.jpg' %}" alt=""/>
-        <p>Our menu consists of whatever I decide to ad while coding. Usually lemony items...</p>
-        <p><a href="{% url 'menu' %}">See our new menu</a></p>
+        <p>Our menu consists of whatever I decide to add while coding. Usually lemony items...</p>
+        <p><a href="{% url 'menu_view' %}">See our new menu</a></p>
     </article>
 
     <article>
         <h2>Book a table</h2>
         <img src="{% static 'images/restaurant_inside.jpg' %}" alt=""/>
         <p>Reservations preferred, but not necessary as this is a fake restaurant.</p>
-        <p><a href="{% url 'booking' %}">Book your table now</a></p>
+        <p><a href="{% url 'booking_view' %}">Book your table now</a></p>
     </article>
 
     <article>

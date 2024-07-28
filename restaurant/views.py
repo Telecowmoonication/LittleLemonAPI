@@ -1118,7 +1118,14 @@ def cart_view(request):
             return redirect('cart_view') # Redirect after successful form processing
         
     cart_items = Cart.objects.filter(user=user)
-    context = {'cart_items': cart_items}
+    cart_subtotal = sum(item.price for item in cart_items)
+    cart_price_after_tax = cart_subtotal * Decimal(1.1)
+    serializer = CartSerializer(cart_items, many=True, context={'request': request})
+    context = {
+        'cart_items': serializer.data,
+        'cart_subtotal': "{:.2f}".format(cart_subtotal),
+        'cart_price_after_tax': "{:.2f}".format(cart_price_after_tax),
+    }
     return render(request, 'cart_view.html', context)
 
 
@@ -1450,9 +1457,9 @@ def booking_view(request):
             return redirect('booking_view') # Redirect after form processing error
             
     business_hours = {
-        'Mon-Fri': '11am - 9pm',
+        'Weekdays': '11am - 9pm',
         'Sat': '11am - 10pm',
-        'sun': '12pm - 8pm'
+        'Sun': '12pm - 8pm'
     }
     
     context = {'form': form, 'business_hours': business_hours}
