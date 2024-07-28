@@ -48,7 +48,7 @@ class CategoryForm(forms.ModelForm):
 class MenuItemForm(forms.ModelForm):
     class Meta:
         model = MenuItem
-        fields = ['title', 'price', 'featured', 'category', 'inventory']
+        fields = ['slug', 'title', 'unit_price', 'featured', 'category', 'inventory']
         
         
 class MenuItemDeleteForm(forms.ModelForm):
@@ -64,7 +64,7 @@ class CartForm(forms.ModelForm):
     quantity = forms.IntegerField(min_value=1)
     
     class Meta:
-        mdoel = Cart
+        model = Cart
         fields = ['menuitem', 'quantity']
         
         

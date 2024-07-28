@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% load static %}
+
 {% block title %}Order Details{% endblock %}
 
 {% block extra_css %}
@@ -16,14 +18,15 @@
         <p><strong>Delivery Crew:</strong> {{ order.delivery_crew.username if order.delivery_crew else "Assigning crew member"  }}</p>
         <p><strong>Ready for Delivery:</strong> {{ "Yes" if order.ready_for_delivery(value=1) else "No" }}</p>
         <p><strong>Delivery Status:</strong> {{ "Delivered" if order.order_status(value=1) else "Out for delivery" }}</p>
-        <p><strong>Total:</strong> ${{ order.total }}</p>
+        <p><strong>Subtotal:</strong> ${{ order.subtotal }}</p>
+        <p><strong>Total:</strong> ${{ order.price_after_tax }}</p>
         <p><strong>Time:</strong> {{ order.time }}</p>
     </div>
 
     <h2>Order Items</h2>
     <ul class="order-items">
         {% for item in order.order_items %}
-            <li>{{ item.menuitem.title }} (x{{ item.quantity }}) - ${{ item.total_price }}</li>
+            <li>{{ item.menuitem.title }} (x{{ item.quantity }}) - ${{ item.price_after_tax }}</li>
         {% endfor %}
     </ul>
 

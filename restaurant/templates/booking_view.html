@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% load static %}
+
 {% block title %}Book a Reservation{% endblock %}
 
 {% block extra_css %}
@@ -11,7 +13,7 @@
     <h1>Book a Reservation</h1>
     <p>The Little Lemon Restaurant is <span>imaginarily</span> open 7 days a week, except for public holidays.</p>
     <ul>
-        <li>Mon-Fri: {{ business_hours.Mon-Fri }}</li>
+        <li>Mon-Fri: {{ business_hours.Weekdays }}</li>
         <li>Sat: {{ business_hours.Sat }}</li>
         <li>Sun: {{ business_hours.Sun }}</li>
     </ul>
