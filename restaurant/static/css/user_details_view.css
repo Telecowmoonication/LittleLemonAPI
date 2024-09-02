@@ -1,0 +1,23 @@
+.user-details-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #f7f7f7;
+    border-radius: 8px;
+}
+
+.user-details-container h1 {
+    font-size: 24px;
+    margin-bottom: 20px;
+}
+
+.user-details-container form {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-details-container form button {
+    margin-top: 10px;
+    padding: 10px;
+    font-size: 16px;
+}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block title %}Obtain Authentication Token{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/obtain_auth_token_view.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="auth-token-container">
+    <h1>Obtain Authentication Token</h1>
+    <form method="post" action="{% url 'obtain_auth_token_view' %}">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="sumbit" id="password" name="password" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Get Token</button>
+    </form>
+    {% if token %}
+        <div class="token-results">
+            <h2>Your Token:</h2>
+            <p>{{ token }}</p>
+        </div>
+    {% elif error %}
+        <div class="error-message">
+            <p>{{ error }}<p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

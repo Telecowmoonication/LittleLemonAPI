@@ -1,9 +1,11 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse, HttpResponseNotFound
 from django.utils import timezone
+from django.urls import reverse
 from django.forms import ValidationError  # Might not need
 from django.conf import settings
 from django.contrib import messages # For better user feedback
+from django.contrib.auth import login, authenticate
 from django.core.paginator import Paginator, EmptyPage
 from django.contrib.auth.models import User, Group
 from django.contrib.auth.decorators import login_required
@@ -18,34 +20,163 @@ from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework import status, viewsets, generics
 from decimal import Decimal
 from .models import Logger, UserComments, MenuItem, Category, Cart, Order, OrderItem, Booking
-from .forms import LogForm, CommentForm, EmployeeForm, ManagerForm, DeliveryCrewForm, CategoryForm, MenuItemForm, MenuItemDeleteForm, CartForm, OrderUpdateForm, OrderAssignDeliveryCrewForm, BookingForm, ReservationStatusForm, DeleteReservationForm
+from .forms import UserRegForm, UserUpdateForm, AuthTokenForm, LogForm, CommentForm, EmployeeForm, ManagerForm, DeliveryCrewForm, CategoryForm, CategoryDeleteForm, MenuItemForm, MenuItemDeleteForm, CartForm, OrderUpdateForm, OrderAssignDeliveryCrewForm, BookingForm, ReservationStatusForm, DeleteReservationForm
 from .permissions import IsAdmin, IsEmployee, IsAdminOrManager, IsAdminOrManagerOrEmployee, IsOwnerOrAdminOrManager, IsEmployeeOrAssignedDeliveryCrewOrCustomerOrAdmin, IsAdminOrEmployeeButNotDeliveryCrew
 from .serializers import UserSerializer, UserRegSerializer, LoggerSerializer, UserCommentsSerializer, CategorySerializer, MenuItemSerializer, BookingSerializer, CartSerializer, OrderItemSerializer, OrderSerializer
 from datetime import datetime
+import requests
 
 # Create your views here.
 
-# User registration
+# User registration API
 # Allows anyone to register for an account
-    # POST: Must submit valid username, email, password, password verification. Creates new user, 201
+    # POST: Must submit valid username, email, password, password verification. Creates new user, 201 (redirects to obtain_auth_token_view)
 # Grading criteria 11. Customer can register
-# Endpoint: /restaurant/register
+# Endpoint: /restaurant/api/register
 # View type: Function based, api
 @api_view(['POST'])
 @permission_classes([AllowAny])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
-def user_registration(request):
+def user_registration_api_view(request):
     serializer = UserRegSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
-        return Response({"message": "User created successfully."}, status=status.HTTP_201_CREATED)
+        token_url = reverse('obtain_auth_token')
+        return Response({"message": "User created successfully.", "token_url": request.build_absolute_uri(token_url)}, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# To obtain access token, users send a POST request to '/api/api-auth-token' with their username and password
+# User registration HTML
+# Allows anyone to view the registration page
+    # GET: Displays registration view
+# Allows anyone to register for an account
+    # POST: Must submit valid username, email, password, password verification. Creates new user.
+# Endpoint: /restaurant/register
+# View type: Function based, HTML
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def user_registration_view(request):
+    if request.method == 'POST':
+        form = UserRegForm(request.POST)
+        if form.is_valid():
+            user = form.save(commit=False)
+            user.set_password(form.cleaned_data['password'])
+            user.save()
+            login(request, user)
+            messages.success(request, "Registration successfull.")
+            return redirect('index')
+        else:
+            messages.error(request, 'Registration failed. Please correct the errors below.')
+    else:
+        form = UserRegForm()
+        
+    return render(request, 'user_reg_view.html', {'form': form})
+
+
+# User details
+# Allows users to view their own details and Admin or Managers to view all user's details
+    # GET: Displays user details
+# Allows users to update their own details and Admin or Managers to update any user's details
+    # PUT: Updates user details
+# Endpoint: /restaurant/api/user/<str:username>
+# View type: Function based, api
+@api_view(['GET', 'PUT'])
+@permission_classes([IsAuthenticated])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def user_details_api_view(request, username=None):
+    if username:
+        if request.user.username == username or request.user.groups.filter(name='Manager').exists() or request.user.is_superuser:
+            try:
+                user = User.objects.get(username=username)
+            except User.DoesNotExist:
+                return Response({"message": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            return Response({"message": "You do not have permission to view or edit this user's details."}, status=status.HTTP_403_FORBIDDEN)
+    else:
+        user = request.user
+        
+    if request.method == 'GET':
+        serializer = UserSerializer(user, context={'request': request})
+        return Response(serializer.data)
+    
+    elif request.method == 'PUT':
+        serializer = UserSerializer(user, data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+# User Details
+# Allows users to view their own details and Admin or Managers to view all user's details
+    # GET: Displays user details
+# Allows users to update their own details and Admin or Managers to update any user's details
+    # POST: Updates user details
+# Endpoint: /restaurant/user/<str:username>
+# View type: Function based, HTML
+@login_required
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def user_details_view(request, username):
+    if request.user.username == username or request.user.groups.filter(name='Manager').exists() or request.user.is_superuser:
+        user = get_object_or_404(User, username=username)
+    else:
+        messages.error(request, "You do not have permission to view or edit this user's details.")
+        return redirect('index')
+    
+    if request.method == 'POST':
+        form = UserUpdateForm(request.POST, instance=user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "User details updated successfully.")
+            return redirect('user_details_view', username=username)
+    else:
+        form = UserUpdateForm(instance=user)
+        
+    context = {'user_detail': user, 'form': form}
+    return render(request, 'user_details_view.html', context)
+    
+
+
+# Auth Token Generation
+# To obtain access token, users who have registered send a POST request to '/restaurant/api/token' with their username and password
 # Response will contain token they can use for authentication
 # Include token in Authorization header of any requests that require authentication
-# Grading Criteria 12. Customers can log in using their username and password and get access tokens
+# Endpoint: /restaurant/api/token
+# View type: Built-in DRF
+
+
+# Auth Token Generation (Only used if you aren't using Django's built-in login, need to uncomment out url to use)
+# Allows users who have registered to view the token generation page
+    # GET: Displays auth token generation view
+# Allows users who have registered to obtain a token they can use for authentication
+    # POST: Creates auth token if a valid username and password is submitted
+# Endpoint: /restaurant/token
+# View type: Function based, HTML
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def obtain_auth_token_view(request):
+    if request.method == 'POST':
+        form = AuthTokenForm(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            password = form.cleaned_data['password']
+            response = requests.post('http://127.0.0.1:8000/restaurant/api/token/', data={'username': username, 'password': password})
+            if response.status_code == 200:
+                token = response.json().get('token')
+                messages.success(request, f'Auth Token: {token}')
+                return redirect('index')
+            else:
+                messages.error(request, "Invalid credentials")
+    else:
+        form = AuthTokenForm()
+        
+    return render(request, 'obtain_auth_token_view.html', {'form': form})
+
+
+# User Login
+# Users who have registered can go to the endpoint /restaurant/accounts/login and enter their username and password
+# Once logged in, the user remains authenticated for subsequent views, as long as the session is valid
+# This is set up as the default for HTML authentication right now, but if you want to use above method instead be sure to follow instructions in comments in view and urls.py
+# Endpoint: /restaurant/accounts/login
+# View type: Django built-in, HTML
 
 
 # Staff log API
@@ -56,7 +187,7 @@ def user_registration(request):
 # Endpoint: /restaurant/api/logger
 # View type: Function based, api
 @api_view(['GET', 'POST'])
-@permission_classes([IsAdminOrManagerOrEmployee])
+@permission_classes([IsAuthenticated, IsAdminOrManagerOrEmployee])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def logger_api_view(request):
     if request.method == 'POST':
@@ -111,6 +242,43 @@ def logger_view(request):
         'logs': logs
     }
     return render(request, 'logger.html', context)
+
+
+# Log Details
+# Allows Admin, Manager, and employee who created the log to view all logs made by each employee, 200
+    # GET: Displays all logs made by the employee
+# Endpoint: /restaurant/log-details/<int:user_id>
+# View type: Function based, api
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsOwnerOrAdminOrManager])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def log_details_api_view(request, user_id):
+    user = request.user
+    if not (user.id == user_id or user.groups.filter(name='Manager').exists() or user.is_superuser):
+        return Response({"message": "You do not have permission to view this data."}, status=status.HTTP_403_FORBIDDEN)
+    
+    logs = Logger.object.filter(user_id=user_id)
+    if not logs.exists():
+        return Response({"message": "No logs found by this user."}, status=status.HTTP_404_NOT_FOUND)
+    
+    serializer = LoggerSerializer(logs, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+# Log Details
+# Allows Admin, Manager, and employee who created the log to view all logs made by each employee
+    # GET: Displays all logs made by the employee
+# Endpoint: /restaurant/log-details/<int:user_id>
+# View type: Function based, HTML
+@login_required
+def log_details_view(request, user_id):
+    user = request.user
+    if not (user.id == user_id or user.groups.filter(name='Manager').exists() or user.is_superuser):
+        messages.error(request, "You do not have permission to view this data.")
+        return redirect('index') # Redirect after permission check
+        
+    logs = Logger.objects.filter(user_id=user_id)
+    context = {'logs': logs}
+    return render(request, 'log_details_view.html', context)
 
 
 # Home Page
@@ -236,10 +404,10 @@ def comments_view(request):
     # GET: Displays users in Employee group, 200
 # Allows only Admin and Managers to add users to Employee group
     # POST: Assigns user to the Employee group, 201
-# Endpoint: /api/groups/employee/users
+# Endpoint: /restaurant/api/groups/employee/users
 # View type: Function based, api
 @api_view(['GET', 'POST'])
-@permission_classes([IsAdminOrManager])
+@permission_classes([IsAuthenticated, IsAdminOrManager])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def employee_api_view(request):
     try:
@@ -271,7 +439,7 @@ def employee_api_view(request):
     # GET: Displays users in Employee group
 # Allows only Admin and Managers to add users to Employee group
     # POST: Assigns user to the Employee group
-# Endpoint: /groups/employee/users
+# Endpoint: /restaurant/groups/employee/users
 # View type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
@@ -312,10 +480,10 @@ def employee_view(request):
     
 # Allows only Admin or Managers to delete users from the Employee group
     # DELETE: Removes user from group, 200
-# Endpoint: /api/groups/employee/users/<str:username>
+# Endpoint: /restaurant/api/groups/employee/users/<str:username>
 # View type: Function based, api
 @api_view(['DELETE'])
-@permission_classes([IsAdminOrManager])
+@permission_classes([IsAuthenticated, IsAdminOrManager])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def employee_delete_api_view(request, username):
     try:
@@ -336,7 +504,7 @@ def employee_delete_api_view(request, username):
 
 # Allows only Admin or Managers to delete users from the Employee group
     # POST: Removes user from group with .remove (forms only use GET and POST)
-# Endpoint: /groups/employee/users/<str:username>
+# Endpoint: /restaurant/groups/employee/users/<str:username>
 # View type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
@@ -379,10 +547,10 @@ def employee_delete_view(request):
     # GET: Displays users in Manager group, 200
 # Allows only Admin and Managers to add users to Manager group if they are an Employee already
     # POST: Assigns user to the Manager group, 201
-# Endpoint: /api/groups/manager/users
+# Endpoint: /restaurant/api/groups/manager/users
 # View type: Function based, api
 @api_view(['GET', 'POST'])
-@permission_classes([IsAdminOrManager])
+@permission_classes([IsAuthenticated, IsAdminOrManager])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def manager_api_view(request):
     try:
@@ -423,7 +591,7 @@ def manager_api_view(request):
     # GET: Displays users in Manager group
 # Allows only Admin and Managers to add users to Manager group, if they are an Employee already
     # POST: Assigns user to the Manager group
-# Endpoint: /groups/manager/users
+# Endpoint: /restaurant/groups/manager/users
 # View type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
@@ -473,10 +641,10 @@ def manager_view(request):
 
 # Allows only Admin or Managers to delete users from the Manager group
     # DELETE: Removes user from group, 200
-# Endpoint: /api/groups/manager/users/<str:username>
+# Endpoint: /restaurant/api/groups/manager/users/<str:username>
 # View type: Function based, api
 @api_view(['DELETE'])
-@permission_classes([IsAdminOrManager])
+@permission_classes([IsAuthenticated, IsAdminOrManager])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def manager_delete_api_view(request, username):
     try:
@@ -497,7 +665,7 @@ def manager_delete_api_view(request, username):
 
 # Allows only Admin or Managers to delete users from the Manager group
     # POST: Removes user from group with .remove (forms only use GET and POST)
-# Endpoint: /groups/manager/users/<str:username>
+# Endpoint: /restaurant/groups/manager/users/<str:username>
 # View type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
@@ -540,10 +708,10 @@ def manager_delete_view(request):
     # GET: Displays users in Delivery Crew group
 # Allows only Admin and Managers to add users to the Delivery Crew group, if they are an Employee already
     # POST: Assigns user to Delivery Crew Group
-# Endpoint: /api/groups/delivery-crew/users
+# Endpoint: /restaurant/api/groups/delivery-crew/users
 # view type: Function based, api
 @api_view(['GET', 'POST'])
-@permission_classes([IsAdminOrManagerOrEmployee])
+@permission_classes([IsAuthenticated, IsAdminOrManagerOrEmployee])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def delivery_crew_api_view(request):
     try:
@@ -585,7 +753,7 @@ def delivery_crew_api_view(request):
     # GET: Displays users in Delivery Crew group
 # Allows only Admin and Managers to add users to the Delivery Crew group, if they are an Employee already
     # POST: Assigns user to Delivery Crew Group
-# Endpoint: /groups/delivery-crew/users
+# Endpoint: /restaurant/groups/delivery-crew/users
 # view type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
@@ -639,10 +807,10 @@ def delivery_crew_view(request):
 
 # Allows only Admin or Managers to delete users from the Delivery Crew group
     # DELETE: Removes user from group
-# Endpoint: /api/groups/delivery-crew/users/<str:username>
+# Endpoint: /restaurant/api/groups/delivery-crew/users/<str:username>
 # View type: Function based, api
 @api_view(['DELETE'])
-@permission_classes([IsAdminOrManager])
+@permission_classes([IsAuthenticated, IsAdminOrManager])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def delivery_crew_delete_api_view(request, username):
     try:
@@ -663,7 +831,7 @@ def delivery_crew_delete_api_view(request, username):
 
 # Allows only Admin or Managers to delete users from the Delivery Crew group
     # POST: Removes user from group with .remove (forms only use GET and POST)
-# Endpoint: /groups/delivery-crew/users/<str:username>
+# Endpoint: /restaurant/groups/delivery-crew/users/<str:username>
 # View type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
@@ -706,7 +874,7 @@ def delivery_crew_delete_view(request):
     # GET: Displays categories, 200
 # Allows only Admin or Managers to add categories
     # POST: Adds a category, 201
-# Endpoint: /api/category
+# Endpoint: /restaurant/api/category
 # View type: Function based, api
 @api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
@@ -732,7 +900,7 @@ def category_api_view(request):
     # GET: Displays categories
 # Allows only Admin or Managers to add categories
     # POST: Adds a category
-# Endpoint: /category
+# Endpoint: /restaurant/category
 # View type: Function based, HTML
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def category_view(request):
@@ -758,10 +926,10 @@ def category_view(request):
 
 # Allows only Admin or Managers to delete categories
     # DELETE: Removes a category
-# Endpoint: /api/category/delete/<slug:slug>
+# Endpoint: /restaurant/api/category/delete/<slug:slug>
 # View type: Function based, api
 @api_view(['DELETE'])
-@permission_classes([IsAdminOrManager])
+@permission_classes([IsAuthenticated, IsAdminOrManager])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def category_delete_api_view(request, slug):
     try:
@@ -774,7 +942,7 @@ def category_delete_api_view(request, slug):
 
 # Allows only Admin or Managers to delete categories
     # POST: Removes a category (forms only use GET and POST)
-# Endpoint: /category/delete/<slug:slug>
+# Endpoint: /restaurant/category/delete/<slug:slug>
 # View type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
@@ -784,10 +952,10 @@ def category_delete_view(request):
         return redirect('category_view') # Redirect after permission check
     
     categories = Category.objects.all()
-    form = CategoryForm()
+    form = CategoryDeleteForm()
     
     if request.method == 'POST':
-        form = CategoryForm(request.POST)
+        form = CategoryDeleteForm(request.POST)
         if form.is_valid():
             try:
                 category = Category.objects.get(slug=form.cleaned_data['slug'])
@@ -804,7 +972,7 @@ def category_delete_view(request):
 
 # Allows anyone to view the items in each category
     # GET: Displays items in category
-# Endpoint: /api/category/<slug:category_slug>
+# Endpoint: /restaurant/api/category/<slug:category_slug>
 # View type: Function based, api
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -827,7 +995,7 @@ def category_details_api_view(request, category_slug):
 
 # Allows anyone to view the items in each category
     # GET: Displays items in category
-# Endpoint: /category/<slug:category_slug>
+# Endpoint: /restaurant/category/<slug:category_slug>
 # View type: Function based, HTML
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def category_details_view(request, category_slug):
@@ -847,7 +1015,7 @@ def category_details_view(request, category_slug):
     # GET: Displays menu, 200
 # Allows only Admin or Managers to add menu items
     # POST: Adds menu item, 201
-# Endpoint: /api/menu
+# Endpoint: /restaurant/api/menu
 # View type: Function based, api
 @api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
@@ -875,7 +1043,7 @@ def menu_api_view(request):
     # POST (add_menu_item): Adds menu item
 # Allows only authenticated users to add items to their cart
     # POST (add_to_cart): Adds item to cart
-# Endpoint: /menu
+# Endpoint: /restaurant/menu
 # View type: Function based, HTML
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def menu_view(request):
@@ -915,7 +1083,7 @@ def menu_view(request):
     # GET: Displays menu item, 200
 # Allows only authenticated users to add menu items to their cart
     # POST: Adds item to cart, sets the authenticated user as the user id for these cart items, 201
-# Endpoint: /api/menu-item/<slug:slug>
+# Endpoint: /restaurant/api/menu-item/<slug:slug>
 # View type: Function based, api
 @api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
@@ -942,7 +1110,7 @@ def menu_item_api_view(request, slug):
     # GET: Displays menu item
 # Allows only authenticated users to add items to their cart
     # POST: Adds item to cart, sets the authenticated user as the user id for these cart items
-# Endpoint: /menu-item/<slug:slug>
+# Endpoint: /restaurant/menu-item/<slug:slug>
 # View type: Function based, HTML
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def menu_item_view(request, slug):
@@ -967,10 +1135,10 @@ def menu_item_view(request, slug):
 
 # Allows only Admin or Managers to delete menu items
     # DELETE: Removes menu item, 200
-# Endpoint: /api/menu-item/delete/<slug:slug>
+# Endpoint: /restaurant/api/menu-item/delete/<slug:slug>
 # View type: Function based, api
 @api_view(['DELETE'])
-@permission_classes([IsAdminOrManager])
+@permission_classes([IsAuthenticated, IsAdminOrManager])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def menu_item_delete_api_view(request, slug):
     try:
@@ -983,7 +1151,7 @@ def menu_item_delete_api_view(request, slug):
     
 # Allows only Admin or Managers to delete menu items
     # POST: Removes menu item (forms only use GET and POST)
-# Endpoint: /menu-item/delete/<slug:slug>
+# Endpoint: /restaurant/menu-item/delete/<slug:slug>
 # View type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
@@ -1017,7 +1185,7 @@ def menu_item_delete_view(request):
     # POST: Adds menu item to cart, sets the authenticated user as the user id for these cart items, 201
 # Allows only the authenticated user to remove menu items from their cart
     # DELETE: Removes item from user cart, 200
-# Endpoint: /api/cart
+# Endpoint: /restaurant/api/cart
 # View type: Function based, api
 @api_view(['GET', 'POST', 'DELETE'])
 @permission_classes([IsAuthenticated])
@@ -1064,7 +1232,7 @@ def cart_api_view(request):
     # POST (update_cart): Changes quantity of item in cart
 # Allows only the authenticated user to remove menu items from their cart
     # POST (remove_selected): Removes selcted item(s) from cart
-# Endpoint: /cart
+# Endpoint: /restaurant/cart
 # View type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
@@ -1074,28 +1242,37 @@ def cart_view(request):
     if not user.is_authenticated:
         return redirect('settings.LOGIN_URL') # Redirect to login for unauthenticated users
     
+    cart_items = Cart.objects.filter(user=user)
+    cart_subtotal = sum(item.price for item in cart_items)
+    cart_price_after_tax = cart_subtotal * Decimal(1.1)
+    
     if request.method == 'POST':
         if 'update_cart' in request.POST:
-            menuitem_id = request.POST.get('menuitem_id')
-            new_quantity = int(request.POST.get('new_quantity'))
+            form = CartForm(request.POST)
+            if form.is_valid():
+                menuitem_title = form.cleaned_data['menuitem_title']
+                new_quantity = form.cleaned_data['quantity']
                 
-            try:
-                menuitem = MenuItem.objects.get(id=menuitem_id)
-                cart_item = Cart.objects.get(user=user, menuitem=menuitem)
-                if new_quantity <= menuitem.inventory:
-                    cart_item.quantity = new_quantity
-                    cart_item.save()
-                    messages.success(request, f"Quantity of {menuitem.title} updated to {new_quantity}.")
-                    return redirect('cart_view') # Redirect after successful form processing
-                else:
-                    messages.error(request, f"Requested quantity exceeds available stock for {menuitem.title}. Available stock: {menuitem.inventory}")
-                    return redirect('cart_view') # Redirect after error message
-            except MenuItem.DoesNotExist:
-                messages.error(request, "Menu item not found.")
-                return redirect('cart_view') # Redirect after exception handling
-            except Cart.DoesNotExist:
-                messages.error(request, f"Item '{menuitem.title}' not found in your cart.")
-                return redirect('cart_view') # Redirect after exception handling
+                try:
+                    menuitem = MenuItem.objects.get(title=menuitem_title)
+                    cart_item = Cart.objects.get(user=user, menuitem=menuitem)
+                    if new_quantity <= menuitem.inventory:
+                        cart_item.quantity = new_quantity
+                        cart_item.save()
+                        messages.success(request, f"Quantity of {menuitem.title} updated to {new_quantity}.")
+                        return redirect('cart_view') # Redirect after successful form processing
+                    else:
+                        messages.error(request, f"Requested quantity exceeds available stock for {menuitem.title}. Available stock: {menuitem.inventory}")
+                        return redirect('cart_view') # Redirect after error message
+                except MenuItem.DoesNotExist:
+                    messages.error(request, "Menu item not found.")
+                    return redirect('cart_view') # Redirect after exception handling
+                except Cart.DoesNotExist:
+                    messages.error(request, f"Item '{menuitem.title}' not found in your cart.")
+                    return redirect('cart_view') # Redirect after exception handling
+            else:
+                messages.error(request, "Invalid form submission.")
+                return redirect('cart_view') # Redirect after invalid form handling
             
         elif 'remove_selected' in request.POST:
             selected_items = request.POST.getlist('selected_items')
@@ -1117,14 +1294,16 @@ def cart_view(request):
                 messages.success(request, f"Removed item(s) from your cart: {', '.join(deleted_titles)}")
             return redirect('cart_view') # Redirect after successful form processing
         
-    cart_items = Cart.objects.filter(user=user)
-    cart_subtotal = sum(item.price for item in cart_items)
-    cart_price_after_tax = cart_subtotal * Decimal(1.1)
+    else:
+        form = CartForm()
+        
+    
     serializer = CartSerializer(cart_items, many=True, context={'request': request})
     context = {
         'cart_items': serializer.data,
         'cart_subtotal': "{:.2f}".format(cart_subtotal),
         'cart_price_after_tax': "{:.2f}".format(cart_price_after_tax),
+        'form': form,
     }
     return render(request, 'cart_view.html', context)
 
@@ -1133,7 +1312,7 @@ def cart_view(request):
     # GET: Displays orders, 200
 # Allows only authenticated users to create an order
     # POST: Creates new order for current user, gets cart items, adds them to the order, then deletes them from the cart for the user, 201
-# Endpoint: /api/orders
+# Endpoint: /restaurant/api/orders
 # View type: Function based, api
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated, IsEmployeeOrAssignedDeliveryCrewOrCustomerOrAdmin])
@@ -1183,7 +1362,7 @@ def orders_api_view(request):
     # GET: Displays orders
 # Allows only authenticated users to create an order
     # POST: Creates new order for current user, gets cart items, adds them to the order, then deletes them from the cart for the user
-# Endpoint: /orders
+# Endpoint: /restaurant/orders
 # View type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
@@ -1241,7 +1420,7 @@ def orders_view(request):
     # PATCH: Updates order status, 0 (False, not yet delivered) or 1 (True, delivered), 200
 # Allows only Admin or Managers to delete the order
     # DELETE: Deletes order, 200
-# Endpoint: /api/orders/<int:order_id>
+# Endpoint: /restaurant/api/orders/<int:order_id>
 # View type: Function based, api
 @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
 @permission_classes([IsAuthenticated, IsEmployeeOrAssignedDeliveryCrewOrCustomerOrAdmin])
@@ -1299,7 +1478,7 @@ def order_details_api_view(request, order_id):
 # Allows only Admin or Managers to delete the order
     # POST (delete_order): Deletes order
 # Uses .has_permission for conditional auth
-# Endpoint: /orders/<int:order_id>
+# Endpoint: /restaurant/orders/<int:order_id>
 # View type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
@@ -1405,7 +1584,7 @@ BUSINESS_HOURS = {
 
 # Allows anyone to book a reservation during business hours (up to 1 hour before close)
     # POST: Creates a booking, 201
-# Endpoint: /api/bookings
+# Endpoint: /restaurant/api/bookings
 # View type: Function based, api
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -1431,7 +1610,7 @@ def booking_api_view(request):
     # GET: Displays booking page
 # Allows anyone to book a reservation during business hours (up to 1 hour before close)
     # POST: Creates a reservation
-# Endpoint: /bookings
+# Endpoint: /restaurant/bookings
 # View type: Function based, HTML
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def booking_view(request):
@@ -1469,10 +1648,10 @@ def booking_view(request):
 
 # Allows only Admin or Employees (excluding Delivery Crew) to view current reservations that have been made
     # GET: Displays currently booked reservations, 200
-# Endpoint: /api/reservations
+# Endpoint: /restaurant/api/reservations
 # View type: Function based, api
 @api_view(['GET'])
-@permission_classes([IsAdminOrEmployeeButNotDeliveryCrew])
+@permission_classes([IsAuthenticated, IsAdminOrEmployeeButNotDeliveryCrew])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def reservations_api_view(request):
     bookings = Booking.objects.filter(reservation_status='current')
@@ -1485,7 +1664,7 @@ def reservations_api_view(request):
 # Allows only Admin or Employees (excluding Delivery Crew) to view current reservations that have been made
     # GET: Displays currently booked reservations
 # Uses .has_permission for conditional auth
-# Endpoint: /reservations
+# Endpoint: /restaurant/reservations
 # View type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
@@ -1503,10 +1682,10 @@ def reservations_view(request):
 
 # Allows only Admin or Employees (excluding Delivery Crew) to view past reservations that have been made (either completed or missed)
     # GET: Displays past reservations, 200
-# Endpoint: /api/reservations/old
+# Endpoint: /restaurant/api/reservations/old
 # View type: Function based, api
 @api_view(['GET'])
-@permission_classes([IsAdminOrEmployeeButNotDeliveryCrew])
+@permission_classes([IsAuthenticated, IsAdminOrEmployeeButNotDeliveryCrew])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def old_reservations_api_view(request):
     bookings = Booking.objects.filter(reservation_status__in=['completed', 'missed'])
@@ -1517,7 +1696,7 @@ def old_reservations_api_view(request):
 # Allows only Admin or Employees (excluding Delivery Crew) to view past reservations that have been made (either completed or missed)
     # GET: Displays past reservations
 # Uses .has_permission for conditional auth
-# Endpoint: /reservations/old
+# Endpoint: /restaurant/reservations/old
 # View type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
@@ -1537,7 +1716,7 @@ def old_reservations_view(request):
     # POST: Sets the status of a reservation, 201
 # Allows only Admin or Managers to remove a reservation
     # DELETE: Removes a reservation
-# Endpoint: /api/reservations/<int:reservation_id>
+# Endpoint: /restaurant/api/reservations/<int:reservation_id>
 # View type: Function based, api
 @api_view(['GET', 'POST', 'DELETE'])
 @permission_classes([IsAuthenticated])
@@ -1578,7 +1757,7 @@ def reservation_details_api_view(request, reservation_id):
     # POST: Sets the status of a reservation
 # Allows only Managers or Admin to delete reservations
     # POST: Removes a reservation
-# Endpoint: /reservations/<int:reservation_id>
+# Endpoint: /restaurant/reservations/<int:reservation_id>
 # View type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
