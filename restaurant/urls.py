@@ -4,12 +4,18 @@ from rest_framework.authtoken.views import obtain_auth_token
 from django.contrib.auth import views as auth_views
 
 urlpatterns = [
-    path('register', views.user_registration, name='register'), # API view to create new user
-    path('api-token-auth', obtain_auth_token, name='api-token-auth'), # User can log in to generate auth tokens (API)
-    path('accounts/login', auth_views.LoginView.as_view(), name='login'), # Django's built-in login view (HTML)
+    path('api/register', views.user_registration_api_view, name='register_api_view'), # API view for users to create an account
+    path('register', views.user_registration_view, name='register_view'), # HTML view for users to create an account
+    path('api/user/<str:username>', views.user_details_api_view, name='user_details_api_view'), # API view to display and update user details
+    path('user/<str:username>', views.user_details_view, name='user_details_view'), # HTML view to display and update user details
+    path('api/token', obtain_auth_token, name='api-token-auth'), # API view so user can log in to generate auth tokens
+    # path('token', views.obtain_auth_token_view, name='token_view'), # HTML view so users can log in to generate auth tokens, if you uncomment out this, comment out below path
+    path('accounts/login', auth_views.LoginView.as_view(), name='login'), # Django's built-in login view (HTML), keeps user authenticated while session is valid, if you comment out this, uncomment out above path
     path('', views.index, name='index'), # Home page (HTML)
     path('api/logger', views.logger_api_view, name='logger_api_view'), # API view for employees to log/view hours
     path('logger', views.logger_view, name='logger_view'), # AJAX view for employees to log/view hours
+    path('api/log-details/<int:user_id>', views.log_details_api_view, name='log_details_api_view'), # API view for employees to view their log details
+    path('log-details/<int:user_id>', views.log_details_view, name='log_details_view'), # HTML view for employees to view their log details
     path('api/search', views.search_api_view, name='search_api_view'), # API view to search MenuItems and Categories
     path('search', views.search_view, name='search_view'), # HTML view to search MenuItems and Categories
     path('api/comments', views.comments_api_view, name='comments_api_view'), # API view for comments about restaurant

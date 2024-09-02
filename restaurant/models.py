@@ -5,7 +5,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 # Create your models here.
 
-# For logging staff hours
+# Table for employee hours and logs
 class Logger(models.Model):
     LOG_TYPE_CHOICES = [
         ('IN', 'Login'),
@@ -21,7 +21,7 @@ class Logger(models.Model):
         return f'{self.first_name} {self.last_name} - {self.log_type} at {self.time_log}'
     
 
-# For user comments/reviews
+# Table for user comments/reviews
 class UserComments(models.Model):
     first_name = models.CharField(max_length=200)
     last_name = models.CharField(max_length=200)
@@ -32,6 +32,7 @@ class UserComments(models.Model):
         return f'{self.first_name} {self.last_name}: {self.comment}'
     
 
+# Table for the categories of menu items
 class Category(models.Model):
     slug = models.SlugField(max_length=255, unique=True, blank=True, null=True)
     title = models.CharField(max_length=255, unique=True, db_index=True)
@@ -45,6 +46,7 @@ class Category(models.Model):
         return self.title
 
 
+# Table for menu items
 class MenuItem(models.Model):
     slug = models.SlugField(max_length=255, unique=True, blank=True, null=True)
     title = models.CharField(max_length=255, unique=True, db_index=True)
@@ -62,7 +64,7 @@ class MenuItem(models.Model):
         return self.title
     
 
-# For each user's cart
+# Table for each user's cart
 class Cart(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     menuitem = models.ForeignKey(MenuItem, on_delete=models.CASCADE)
@@ -84,6 +86,7 @@ class Cart(models.Model):
         return f'Cart of {self.user.username}'
     
 
+# Table for all orders
 class Order(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     delivery_crew = models.ForeignKey(User, on_delete=models.SET_NULL, related_name="delivery_crew", null=True)
@@ -111,7 +114,8 @@ class Order(models.Model):
         self.orderitem_set.all().delete()
         super().delete(*args, **kwargs)
         
-    
+
+# Table for order details    
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
     menuitem = models.ForeignKey(MenuItem, on_delete=models.CASCADE)
@@ -132,7 +136,7 @@ class OrderItem(models.Model):
         price = self.unit_price * self.quantity
         return price.quantize(Decimal(1.1), rounding=ROUND_HALF_UP)
 
-# For booking a reservation
+# Table for reservations booked
 class Booking(models.Model):
     STATUS_CHOICES = [
         ('current', 'Current'),

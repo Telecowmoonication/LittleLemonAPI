@@ -27,16 +27,13 @@
             <tbody>
                 {% for item in cart_items %}
                     <tr>
-                        <td><input type="checkbox" name="selected_items" value="{{ item.menuitem.id }}"></td>
+                        <td><input type="checkbox" name="selected_items" value="{{ item.menuitem.title }}"></td>
                         <td>{{ item.menuitem.title }}</td>
                         <td>
-                            <form method="post" style="display: inline;">
-                                {% csrf_token %}
-                                <input type="hidden" name="menuitem_id" value="{{ item.menuitem.id }}">
-                                <button type="submit" name="update_quantity" value="{{ item.quantity|add:-1 }}" class="btn btn-sm btn-secondary">-</button>
-                                <input type="number" name="new_quantity" value="{{ item.quantity }}" min="1" max="{{ item.menuitem.inventory }}" class="quantity-input">
-                                <button type="submit" name="update_quantity" value="{{ item.quantity|add:1 }}" class="btn btn-sm btn-secondary">+</button>
-                            </form>
+                            <input type="hidden" name="menuitem_title" value="{{ item.menuitem.title }}">
+                            <button type="submit" name="update_cart" value="{{ item.quantity|add:-1 }}" class="btn btn-sm btn-secondary">-</button>
+                            <input type="number" name="new_quantity" value="{{ item.quantity }}" min="1" max="{{ item.menuitem.inventory }}" class="quantity-input">
+                            <button type="submit" name="update_cart" value="{{ item.quantity|add:1 }}" class="btn btn-sm btn-secondary">+</button>
                         </td>
                         <td>{{ item.unit_price }}</td>
                         <td>{{ item.price }}</td>
@@ -51,7 +48,7 @@
                 </tr>
                 <tr>
                     <td colspan="4">Total (including tax)</td>
-                    <td>{{ cart_price_with_tax }}</td>
+                    <td>{{ cart_price_after_tax }}</td>
                 </tr>
             </tfoot>
         </table>

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block title %}User Details{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/user_details_view.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="user-details-container">
+    <h1>User Details: {{ user_details.username }}</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Update</button>
+    </form>
+</div>
+{% endblock %}

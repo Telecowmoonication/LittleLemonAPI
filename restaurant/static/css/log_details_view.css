@@ -1,0 +1,37 @@
+.log-details-container {
+    width: 80%;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.log-details-container h1 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.log-details-container table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.log-details-container th,
+.log-details-container td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.log-details-container th {
+    background-color: #f2f2f2;
+}
+
+.log-details-container tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.log-details-container tr:hover {
+    background-color: #ddd;
+}

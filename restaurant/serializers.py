@@ -4,6 +4,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.utils import timezone
 from django.utils.text import slugify
 from rest_framework.validators import UniqueValidator
+from rest_framework.reverse import reverse
 from .models import Logger, UserComments, Category, MenuItem, Booking, Cart, Order, OrderItem
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import time
@@ -11,18 +12,25 @@ import re
 import bleach
 import datetime
 
-# Serializes User model for use with API, provides link to user instance
+# Serializes User model for use with API, links to user instance
 class UserSerializer(serializers.HyperlinkedModelSerializer):
+    user_details_url = serializers.SerializerMethodField()
     
     class Meta:
         model = User
-        fields = ['url', 'username', 'email', 'groups']
+        fields = ['url', 'user_details_url', 'username', 'email', 'first_name', 'last_name', 'groups']
+        read_only_fields = ['username']
+        
+    def get_user_details_url(self, obj):
+        request = self.context.get('request')
+        return reverse('user_api_view', args=[obj.username], request=request)
 
 
 # Serializes and validates the user registration information
 class UserRegSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     password2 = serializers.CharField(write_only=True, required=True)
+    email = serializers.EmailField(required=True, validators=[UniqueValidator(queryset=User.objects.all())])
     
     class Meta:
         model = User
@@ -32,6 +40,16 @@ class UserRegSerializer(serializers.ModelSerializer):
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({"password": "Password fields did not match."})
         return attrs
+    
+    def validate_username(self, value):
+        if len(value) < 3 or len(value) > 150:
+            raise serializers.ValidationError("Username must be betweeb 3 and 150 characters long.")
+        return bleach.clean(value, tags=[], strip=True)
+    
+    def validate_email(self, value):
+        if not serializers.EmailField().run_validation(value):
+            raise serializers.ValidationError("Invalid email format.")
+        return value
     
     def create(self, validated_data):
         validated_data.pop('password2')
@@ -46,13 +64,18 @@ class UserRegSerializer(serializers.ModelSerializer):
         return user
 
 
-# Serializes and validates employee hours worked
+# Serializes and validates employee hours worked, links to log details
 class LoggerSerializer(serializers.HyperlinkedModelSerializer):
+    log_details_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Logger
-        fields = ['url', 'id', 'first_name', 'last_name', 'log_type', 'time_log']
+        fields = ['url', 'log_details_url', 'id', 'first_name', 'last_name', 'log_type', 'time_log']
         read_only_fields = ['id']
+        
+    def get_log_details_url(self, obj):
+        request = self.context.get('request')
+        return reverse('log_details_api_view', args=[obj.user.id], request=request)
         
     def validate_first_name(self, value):
         if not value.isalpha():
@@ -62,6 +85,7 @@ class LoggerSerializer(serializers.HyperlinkedModelSerializer):
     def validate_last_name(self, value):
         if not value.isalpha():
             raise serializers.ValidationError("Last name should contain only letters.")
+        return value
         
     def validate_time_log(self, value):
         # Defining allowed time range (7AM to 12AM)
@@ -72,7 +96,7 @@ class LoggerSerializer(serializers.HyperlinkedModelSerializer):
             raise serializers.ValidationError("Log time must be between 7AM and 12AM.")
         return value
     
-    def validate(self, data):
+    def validate_log(self, data):
         first_name = data.get('first_name')
         last_name = data.get('last_name')
         log_type = data.get('log_type')
@@ -89,11 +113,12 @@ class LoggerSerializer(serializers.HyperlinkedModelSerializer):
         return data
 
 
-class UserCommentsSerializer(serializers.HyperlinkedModelSerializer):
+# Serializes and validates user comments
+class UserCommentsSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = UserComments
-        fields = ['url', 'id', 'first_name', 'last_name', 'comment', 'created_at']
+        fields = ['id', 'first_name', 'last_name', 'comment', 'created_at']
         read_only_fields = ['id', 'created_at']
         
     def validate_first_name(self, value):
@@ -112,11 +137,13 @@ class UserCommentsSerializer(serializers.HyperlinkedModelSerializer):
         return bleach.clean(value, tags=[], strip=True)
 
 
+# Serializes and validates categories, links to category details
 class CategorySerializer(serializers.HyperlinkedModelSerializer):
+    category_details_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Category
-        fields = ['url', 'id', 'slug', 'title']
+        fields = ['url', 'category_details_url', 'id', 'slug', 'title']
         read_only_fields = ['id']
         extra_kwargs = {
             'slug': {
@@ -130,6 +157,10 @@ class CategorySerializer(serializers.HyperlinkedModelSerializer):
                 ]
             }
         }
+        
+    def get_category_details_url(self, obj):
+        request = self.context.get('request')
+        return reverse('category_details_api_view', args=[obj.slug], request=request)
     
     # Ensuring slug only has lowercase letters, numbers, and hyphens. Cannot be blank or only hyphens
     def validate_slug(self, value):
@@ -158,16 +189,18 @@ class CategorySerializer(serializers.HyperlinkedModelSerializer):
         return bleach.clean(value, tags=[], strip=True)
     
 
+# Serializes and validates menu items, links to menu item details
 class MenuItemSerializer(serializers.HyperlinkedModelSerializer):
     slug = serializers.SlugField(required=False, allow_blank=True, allow_null=True)
     stock = serializers.IntegerField(source='inventory')
     price_after_tax = serializers.SerializerMethodField(method_name='calculate_tax')
     category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
     featured = serializers.BooleanField(required=False)
+    menuitem_details_url = serializers.SerializerMethodField()
 
     class Meta:
         model = MenuItem
-        fields = ['url', 'id', 'slug', 'title', 'unit_price', 'price_after_tax', 'category', 'featured', 'stock']
+        fields = ['url', 'menuitem_details_url', 'id', 'slug', 'title', 'unit_price', 'price_after_tax', 'category', 'featured', 'stock']
         read_only_fields = ['id']
         extra_kwargs = {
             'unit_price': {'min_value': Decimal('0.01'), 'error_messages': {'min_value': 'Price must be greater than zero.'}},
@@ -184,6 +217,10 @@ class MenuItemSerializer(serializers.HyperlinkedModelSerializer):
             }
         }
         
+    def get_menuitem_details_url(self, obj):
+        request = self.context.get('request')
+        return reverse('menu_item_api_view', args=[obj.slug], request=request)
+    
     # Ensuring slug only has lowercase letters, numbers, and hyphens. Cannot be blank or only hyphens
     def validate_slug(self, value):
         if not re.match(r'^[a-z0-9-]+$', value):
@@ -215,28 +252,35 @@ class MenuItemSerializer(serializers.HyperlinkedModelSerializer):
         return menuitem.unit_price * Decimal(1.1)
     
 
+# Serializes and validates carts, links to menu item details
 class CartSerializer(serializers.HyperlinkedModelSerializer):
     user_username = serializers.ReadOnlyField(source='user.username') # Gets username from User model
     menuitem_title = serializers.CharField(write_only=True) # Allows for the input of a menuitem by a user
     unit_price = serializers.ReadOnlyField() # Shows but does not allow editing/input
     price = serializers.ReadOnlyField() # Shows but does not allow editing/input
-    subtotal = serializers.ReadOnlyField() # Shows but does not allow editing/input
-    price_after_tax = serializers.ReadOnlyField() # Shows but does not allow editing/input
+    subtotal = serializers.SerializerMethodField() # Shows but does not allow editing/input
+    price_after_tax = serializers.SerializerMethodField() # Shows but does not allow editing/input
+    menuitem_details_url = serializers.SerializerMethodField() # For hyperlink
     
     class Meta:
         model = Cart
-        fields = ['url', 'id', 'user_username', 'menuitem_title', 'quantity', 'unit_price', 'price', 'subtotal', 'price_after_tax']
+        fields = ['url', 'menuitem_details_url', 'id', 'user_username', 'menuitem_title', 'quantity', 'unit_price', 'price', 'subtotal', 'price_after_tax']
         read_only_fields = ['id', 'user_username', 'unit_price', 'price', 'subtotal', 'price_after_tax']
         extra_kwargs = {
             'quantity': {'min_value': 1, 'error_messages': {'min_value': 'Quantity must be greater than zero.'}},
         }
+        
+    # For hyperlink
+    def get_menuitem_details_url(self, obj):
+        request = self.context.get('request')
+        return reverse('menu_item_api_view', args=[obj.menuitem.slug], request=request)
     
     # Calculates subtotal    
     def get_subtotal(self, obj):
         user = self.context['request'].user
         user_cart_items = Cart.objects.filter(user=user)
         subtotal = sum(item.price for item in user_cart_items)
-        return subtotal
+        return Decimal(subtotal)
     
     # Calculates price after tax
     def get_price_after_tax(self, obj):
@@ -289,29 +333,33 @@ class CartSerializer(serializers.HyperlinkedModelSerializer):
         return representation
     
 
+# Used to represent the details of a single order item
+# Serializes and validates order item, links to menu item details
 class OrderItemSerializer(serializers.HyperlinkedModelSerializer):
     menuitem_title = serializers.ReadOnlyField(source='menuitem.title')
-    subtotal = serializers.SerializerMethodField()
-    price_after_tax = serializers.SerializerMethodField()
+    price = serializers.SerializerMethodField()
+    menuitem_details_url = serializers.SerializerMethodField()
     
     class Meta:
         model = OrderItem
-        fields = ['url', 'id', 'order', 'menuitem', 'menuitem_title', 'quantity', 'subtotal', 'price_after_tax']
-        read_only_fields = ['id', 'order', 'menuitem_title', 'subtotal', 'price_after_tax']
+        fields = ['url', 'menuitem_details_url', 'id', 'order', 'menuitem', 'menuitem_title', 'quantity', 'price']
+        read_only_fields = ['id', 'order', 'menuitem_title', 'price']
         extra_kwargs = {
             'quantity': {'min_value': 1, 'error_messages': {'min_value': 'Quantity must be at least 1.'}},
         }
     
-    def get_subtotal(self, order_item: OrderItem):
-        subtotal = sum(order_item.price for item in self.orderitem_set.all())
-        return subtotal.quantitze(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    def get_menuitem_details_url(self, obj):
+        request = self.context.get('request')
+        return reverse('menu_item_api_view', args=[obj.menuitem.slug], request=request)
     
-    def get_price_after_tax(self, order_item: OrderItem):
-        subtotal = self.get_subtotal(order_item)
-        price_after_tax = subtotal * Decimal(1.1)
-        return price_after_tax.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    
+    def get_price(self, order_item: OrderItem):
+        price = order_item.quantity * order_item.menuitem.unit_price
+        return price.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     
 
+# Used to represent the entire order, which may include a list of OrderItem instances
+# Serializes and validates orders, links to order details
 class OrderSerializer(serializers.HyperlinkedModelSerializer):
     # For each Order instance being serialized, the serializer should include a list of all related OrderItem instances serialized by OrderItemSerializer
     # orderitem_set refers to a reverse relation from a foreign key
@@ -321,19 +369,34 @@ class OrderSerializer(serializers.HyperlinkedModelSerializer):
     delivery_crew_username = serializers.CharField(write_only=True, required=False)
     subtotal = serializers.SerializerMethodField()
     price_after_tax = serializers.SerializerMethodField()
+    order_details_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Order
-        fields = ['url', 'id', 'user', 'user_username', 'delivery_crew', 'delivery_crew_username', 'order_status', 'ready_for_delivery', 'time', 'order_items', 'subtotal', 'price_after_tax']
+        fields = ['url', 'order_details_url', 'id', 'user', 'user_username', 'delivery_crew', 'delivery_crew_username', 'order_status', 'ready_for_delivery', 'time', 'order_items', 'subtotal', 'price_after_tax']
         read_only_fields = ['id', 'user', 'user_username', 'subtotal', 'price_after_tax' 'order_items']
         extra_kwargs = {
             'time': {'error_messages': {'required': 'Please provide the time of the order.'}},
         }
-        
+    
+    def get_order_details_url(self, obj):
+        request = self.context.get('request')
+        return reverse('order_details_api_view', args=[obj.id], request=request)
+    
+    def get_subtotal(self, order: Order):
+        subtotal = sum(Decimal(item.quantity) * Decimal(item.menuitem.unit_price) for item in order.orderitem_set.all())
+        return subtotal.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    
+    def get_price_after_tax(self, order: Order):
+        subtotal = self.get_subtotal(order)
+        price_after_tax = subtotal * Decimal(1.1)
+        return price_after_tax.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    
     def to_representation(self, instance):
         representation = super().to_representation(instance)
-        representation['subtotal'] = "{:.2f}".format(instance.subtotal)
-        representation['price_after_tax'] = "{:.2f}".format(instance.price_after_tax)
+        representation['subtotal'] = "{:.2f}".format(self.get_subtotal(instance))
+        representation['price_after_tax'] = "{:.2f}".format(self.get_price_after_tax(instance))
+        
         return representation
     
     # Ensure user exists and is a Delivery crew member
@@ -373,12 +436,18 @@ class OrderSerializer(serializers.HyperlinkedModelSerializer):
         return super().update(instance, validated_data)
 
    
+# Serializes and validates bookings, links to user instance
 class BookingSerializer(serializers.HyperlinkedModelSerializer):
+    user_details_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Booking
-        fields = ['url', 'id', 'name', 'no_of_guests', 'booking_date', 'reservation_status']
+        fields = ['url', 'user_details_url', 'id', 'name', 'no_of_guests', 'booking_date', 'reservation_status']
         read_only_fields = ['id']
+        
+    def get_user_details_url(self, obj):
+        request = self.context.get('request')
+        return reverse('user_api_view', args=[obj.user.username], request=request)
         
     def validate_no_of_guests(self, value):
             if value < 1:
