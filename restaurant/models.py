@@ -1,9 +1,67 @@
+from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group
+from django.contrib.auth import get_user_model
 from django.utils.text import slugify
 from decimal import Decimal, ROUND_HALF_UP
+from datetime import timedelta
 
 # Create your models here.
+
+# Custom user model, extends Django's AbstractUser model to add custom permissions and prevent clashes with the default auth.User model
+class CustomUser(AbstractUser):
+    groups = models.ManyToManyField(
+        'auth.Group',
+        related_name='customuser_set',
+        blank=True,
+        help_text='The groups this user belongs to.',
+        verbose_name='groups',
+    )
+    
+    user_permissions = models.ManyToManyField(
+        'auth.Permission',
+        related_name='customuser_set',
+        blank=True,
+        help_text='Specific permissions for this user.',
+        verbose_name='user permissions',
+    )
+    
+    # Custom properties to check for group memberships and superuser status
+    @property
+    def IsCustomer(self):
+        return(
+            self.is_authenticatedand and
+            not self.is_superuser and
+            not self.groups.filter(name__in=['Employee', 'Manager', 'Delivery Crew']).exists()
+        )
+    
+    @property
+    def IsEmployee(self):
+        return self.groups.filter(name='Employee').exists()
+    
+    @property
+    def IsAdminOrManager(self):
+        return self.is_superuser or self.groups.filter(name='Manager').exists()
+    
+    @property
+    def IsOwnerOrAdminOrManager(self, obj):
+        is_owner = (obj.first_name == self.first_name and obj.last_name == self.last_name)
+        is_manager = self.groups.filter(name='Manager').exists()
+        return is_owner or is_manager or self.is_superuser
+    
+    @property
+    def IsAdminOrEmployeeButNotDeliveryCrew(self):
+        return self.is_superuser or (self.groups.filter(name='Employee').exists() and not self.groups.filter(name='Delivery Crew').exists())
+    
+    @property
+    def IsOwnerOrEmployeeOrAdmin(self, obj):
+        is_owner = (obj.first_name == self.first_name and obj.last_name == self.last_name)
+        is_employee = self.groups.filter(name='Employee').exists()
+        return is_owner or is_employee or self.is_superuser
+    
+    
+User = get_user_model()
+
 
 # Table for employee hours and logs
 class Logger(models.Model):
@@ -15,10 +73,20 @@ class Logger(models.Model):
     first_name = models.CharField(max_length=200)
     last_name = models.CharField(max_length=200)
     log_type = models.CharField(max_length=3, choices=LOG_TYPE_CHOICES, default='IN')
-    time_log = models.TimeField(help_text="Enter the exact time! (Ex. 15:26)")
+    start_time = models.TimeField(null=True, blank=True, help_text="Enter the start time (Login time).")
+    end_time = models.TimeField(null=True, blank=True, help_text="Enter the end time (Logout time).")
+    
+    @property
+    def total_hours(self):
+        if self.start_time and self.end_time:
+            start_dt = timedelta(hours=self.start_time.hour, minutes=self.start_time.minute)
+            end_dt = timedelta(hours=self.end_time.hour, minutes=self.end_time.minute)
+            duration = end_dt - start_dt
+            return duration.total_seconds() / 3600 # Convert seconds to hours
+        return None
     
     def __str__(self)-> str:
-        return f'{self.first_name} {self.last_name} - {self.log_type} at {self.time_log}'
+        return f'{self.first_name} {self.last_name} - {self.log_type}'
     
 
 # Table for user comments/reviews

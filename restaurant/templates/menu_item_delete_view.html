@@ -22,6 +22,7 @@
         <thead>
             <tr>
                 <th>Menu Item</th>
+                <th>Action</th>
             </tr>
         </thead>
 
@@ -29,6 +30,9 @@
             {% for menu_item in menu_items %}
                 <tr>
                     <td>{{ menu_item.slug }}</td>
+                    <td>
+                        <a href="{% url 'menu_item_delete_view' menu_item.slug %}">Delete</a>
+                    </td>
                 </tr>
             {% endfor %}
         </tbody>

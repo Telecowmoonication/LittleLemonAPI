@@ -1,8 +1,90 @@
 <!-- Does not need <!DOCTYPE html>, {% load static %}, and other tags like <html>, <head>, and <body> because they will be included in the base.html -->
-<ul class="nav-container">
-    <li><a href="{% url 'index' %}">Home</a></li>
-    <li><a href="{% url 'menu_view' %}">Menu</a></li>
-    <li><a href="{% url 'booking_view' %}">Book</a></li>
-    <li><a href="{% url 'login' %}">Login</a></li>
-    <li><a href="{% url 'logger_view' %}">Staff Log</a></li>
-</ul>
+<div class="hamburger-menu">
+    <span class="hamburger-icon" onclick="toggleNav()">&#9776;</span>
+    <ul class="nav-container" id="nav-menu">
+        <li><a href="{% url 'index' %}">Home</a></li>
+
+        <li class="menu-dropdown">
+            <a href="{% url 'menu_view' %}">Menu</a>
+            <ul class="dropdown-content">
+                <li><a href="{% url 'menu_view' %}">Full Menu</a></li>
+                <li><a href="{% url 'categories_view' %}">Categories</a></li>
+            </ul>
+        </li>
+
+        <li><a href="{% url 'booking_view' %}">Reservation</a></li>
+        <li><a href="{% url 'comments_view' %}">Reviews</a></li>
+
+        {% if user.is_authenticated %}
+            {% if user.IsEmployee %}
+                <li class="employee-dropdown">
+                    <a href="#">Employee Tools</a>
+                    <ul class="dropdown-content">
+                        <li><a href="{% url 'logger_view' %}">Log Hours</a></li>
+
+                        {% if user.logger_set.exists %}
+                            <li><a href="{% url 'log_details_view' %}"></a>My Logs</li>
+                        {% endif %}
+
+                        {% if user.IsAdminOrEmployeeButNotDeliveryCrew %}
+                            <li><a href="{% url 'orders_view' %}">All Orders</a></li>
+                            <li><a href="{% url 'reservations_view' %}">Reservations</a></li>
+                            <li><a href="{% url 'old_reservations_view' %}"></a>Past Reservations</li>
+                        {% endif %}
+                    </ul>
+                </li>
+            {% endif %}
+
+            {% if user.IsAdminOrManager %}
+                <li class="admin-dropdown">
+                    <a href="#">Admin Tools</a>
+                    <ul class="dropdown-content">
+                        <li><a href="{% url 'all_users_view' %}">Users</a></li>
+                        <li><a href="{% url 'employee_view' %}">Employees</a></li>
+                        <li><a href="{% url 'employee_delete_view' %}">Remove Employee</a></li>
+                        <li><a href="{% url 'manager_view' %}">Managers</a></li>
+                        <li><a href="{% url 'manager_delete_view' %}">Remove Manager</a></li>
+                        <li><a href="{% url 'delivery_crew_view' %}">Delivery Crew</a></li>
+                        <li><a href="{% url 'delivery_crew_delete_view' %}">Remove Delivery Crew</a></li>
+
+                        {% if category.slug %}
+                            <li><a href="{% url 'category_delete_view' %}">Remove Category</a></li>
+                        {% endif %}
+
+                        {% if menu_item.slug %}
+                            <li><a href="{% url 'menu_item_delete_view' %}">Remove Menu Item</a></li>
+                        {% endif %}
+                    </ul>
+                </li>
+            {% endif %}
+
+            <li><a href="{% url 'cart_view' %}">Cart</a></li>
+
+            <li class="account-dropdown">
+                <a href="#">Account</a>
+                <ul class="dropdown-content">
+                    <li><a href="{% url 'user_details_view' %}">Profile</a></li>
+
+                    {% if user.order_set.exists %}
+                        <li><a href="{% url 'order_details_view' user.order_set.first.id %}">My Orders</a></li>
+                    {% endif %}
+
+                    {% if user.booking_set.exists %}
+                        <li><a href="{% url 'reservation_details_view' user.booking_set.first.id %}">Reservation Details</a></li>
+                    {% endif %}
+
+                    <li>
+                        <form action="{% url 'logout_view' %}" method="post" class="logout-form">
+                            {% csrf_token %}
+                            <button type="submit" class="logout-btn">Logout</button>
+                        </form>
+                    </li>
+                </ul>
+            </li>
+
+        {% else %}
+            <li><a href="{% url 'login_view' %}">Login</a></li>
+            <li><a href="{% url 'register_view' %}">Register</a></li>
+        {% endif %}
+    </ul>
+</div>

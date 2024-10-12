@@ -22,12 +22,16 @@
         <thead>
             <tr>
                 <th>Username</th>
+                <th>Action</th>
             </tr>
         </thead>
         <tbody>
             {% for employee in employees %}
                 <tr>
                     <td>{{ employee.username }}</td>
+                    <td>
+                        <a href="{% url 'employee_delete_view' employee.username %}">Delete</a>
+                    </td>
                 </tr>
             {% endfor %}
         </tbody>

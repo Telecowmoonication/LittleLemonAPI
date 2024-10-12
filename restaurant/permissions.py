@@ -1,21 +1,14 @@
 from rest_framework.permissions import BasePermission
 
 
-class IsAdmin(BasePermission):
-    def has_permission(self, request, view):
-        return bool(
-            request.user and request.user.is_authenticated and
-            request.user.is_superuser
-        )
-        
-
 class IsEmployee(BasePermission):
     def has_permission(self, request, view):
         is_employee = request.user.groups.filter(name='Employee').exists()
         is_manager = request.user.groups.filter(name='Manager').exists()
+        is_delivery_crew = request.user.groups.filter(name='Delivery Crew').exists()
         return bool(
             request.user and request.user.is_authenticated and
-            (is_employee or is_manager or request.user.is_superuser)
+            (is_employee or is_delivery_crew or is_manager or request.user.is_superuser)
         )
         
 
@@ -26,15 +19,6 @@ class IsAdminOrManager(BasePermission):
             request.user and request.user.is_authenticated and
             (is_manager or request.user.is_superuser)
         )
-
-
-class IsAdminOrManagerOrEmployee(BasePermission):
-    def has_permission(self, request, view):
-        if request.user and request.user.is_authenticated:
-            is_employee = request.user.groups.filter(name='Employee').exists()
-            is_manager = request.user.groups.filter(name='Manager').exists()
-            return bool(is_employee or is_manager or request.user.is_superuser)
-        return False
     
 
 class IsOwnerOrAdminOrManager(BasePermission):

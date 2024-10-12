@@ -11,6 +11,13 @@
 {% block content %}
 <div class="reservations-container">
     <h1>Current Reservations</h1>
+
+    <form method="post" class="search-form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" name="search-reservations" class="btn btn-primary">Search</button>
+    </form>
+
     {% if no_reservations_message %}
         <p>{{ no_reservations_message }}</p>
     {% else %}

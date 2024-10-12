@@ -1,14 +1,17 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse, HttpResponseNotFound
 from django.utils import timezone
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from django.forms import ValidationError  # Might not need
+from django.db.models import Q
 from django.conf import settings
 from django.contrib import messages # For better user feedback
 from django.contrib.auth import login, authenticate
+from django.contrib.auth import get_user_model
 from django.core.paginator import Paginator, EmptyPage
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import Group
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import LoginView, LogoutView # For built-in django login/logout
 from django.views.decorators.http import require_GET, require_POST
 from django.utils.text import slugify
 from rest_framework.response import Response
@@ -20,13 +23,15 @@ from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework import status, viewsets, generics
 from decimal import Decimal
 from .models import Logger, UserComments, MenuItem, Category, Cart, Order, OrderItem, Booking
-from .forms import UserRegForm, UserUpdateForm, AuthTokenForm, LogForm, CommentForm, EmployeeForm, ManagerForm, DeliveryCrewForm, CategoryForm, CategoryDeleteForm, MenuItemForm, MenuItemDeleteForm, CartForm, OrderUpdateForm, OrderAssignDeliveryCrewForm, BookingForm, ReservationStatusForm, DeleteReservationForm
-from .permissions import IsAdmin, IsEmployee, IsAdminOrManager, IsAdminOrManagerOrEmployee, IsOwnerOrAdminOrManager, IsEmployeeOrAssignedDeliveryCrewOrCustomerOrAdmin, IsAdminOrEmployeeButNotDeliveryCrew
+from .forms import UserRegForm, UserUpdateForm, UserSearchForm, AuthTokenForm, LogForm, LogSearchForm, CommentForm, EmployeeForm, ManagerForm, DeliveryCrewForm, CategoryForm, CategoryDeleteForm, MenuItemForm, MenuItemDeleteForm, CartForm, OrderSearchForm, OrderUpdateForm, OrderAssignDeliveryCrewForm, BookingForm, ReservationSearchForm, ReservationStatusForm, DeleteReservationForm
+from .permissions import IsEmployee, IsAdminOrManager, IsOwnerOrAdminOrManager, IsEmployeeOrAssignedDeliveryCrewOrCustomerOrAdmin, IsAdminOrEmployeeButNotDeliveryCrew
 from .serializers import UserSerializer, UserRegSerializer, LoggerSerializer, UserCommentsSerializer, CategorySerializer, MenuItemSerializer, BookingSerializer, CartSerializer, OrderItemSerializer, OrderSerializer
 from datetime import datetime
 import requests
 
 # Create your views here.
+
+User = get_user_model()
 
 # User registration API
 # Allows anyone to register for an account
@@ -72,27 +77,72 @@ def user_registration_view(request):
     return render(request, 'user_reg_view.html', {'form': form})
 
 
+# All users registered
+# Allows Admin or Managers to view all users registered for the site
+    # GET: Displays all users
+# Endpoint: /restaurant/api/users
+# View type: Function based, api
+@api_view(['GET'])
+@permission_classes([IsAdminOrManager])
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def all_users_api_view(request):
+    users = User.objects.all()
+    serializer = UserSerializer(users, many=True, context={'request': request})
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# All users registered
+# Allows Admin or Managers to view all users registered for the site
+    # GET: Displays all users
+# Allows Admin or Managers to search/filter
+    # POST: Filters users
+# Endpoint: /restaurant/users
+# View type: Function based, HTML
+@login_required
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+def all_users_view(request):
+    if not (request.user.groups.filter(name='Manager').exists() or request.user.is_superuser):
+        messages.error(request, "You do not have permission to view users.")
+        return redirect('index')
+    
+    users = User.objects.all()
+        
+    if request.method == 'POST':
+        form = UserSearchForm(request.POST)
+        if form.is_valid():
+            query = form.cleaned_data['query']
+            users = users.filter(username__icontains=query)
+        else:
+            messages.error(request, "There was an error with your search.")
+            return redirect('all_users_view') # Redirect after form processing error
+    else:
+        form = UserSearchForm()
+            
+    context = {'users': users, 'form': form}
+    return render(request, 'all_users_view.html', context)
+        
+
+
 # User details
 # Allows users to view their own details and Admin or Managers to view all user's details
     # GET: Displays user details
 # Allows users to update their own details and Admin or Managers to update any user's details
     # PUT: Updates user details
-# Endpoint: /restaurant/api/user/<str:username>
+# Endpoint: /restaurant/api/user
 # View type: Function based, api
 @api_view(['GET', 'PUT'])
 @permission_classes([IsAuthenticated])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
-def user_details_api_view(request, username=None):
-    if username:
+def user_details_api_view(request):
+    username = request.data.get('username') or request.user.username
+    
+    try:
         if request.user.username == username or request.user.groups.filter(name='Manager').exists() or request.user.is_superuser:
-            try:
-                user = User.objects.get(username=username)
-            except User.DoesNotExist:
-                return Response({"message": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+            user = User.objects.get(username=username)
         else:
             return Response({"message": "You do not have permission to view or edit this user's details."}, status=status.HTTP_403_FORBIDDEN)
-    else:
-        user = request.user
+    except User.DoesNotExist:
+        return Response({"message": "User not found."}, status=status.HTTP_404_NOT_FOUND)
         
     if request.method == 'GET':
         serializer = UserSerializer(user, context={'request': request})
@@ -111,15 +161,21 @@ def user_details_api_view(request, username=None):
     # GET: Displays user details
 # Allows users to update their own details and Admin or Managers to update any user's details
     # POST: Updates user details
-# Endpoint: /restaurant/user/<str:username>
+# Endpoint: /restaurant/user
 # View type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
-def user_details_view(request, username):
-    if request.user.username == username or request.user.groups.filter(name='Manager').exists() or request.user.is_superuser:
-        user = get_object_or_404(User, username=username)
-    else:
-        messages.error(request, "You do not have permission to view or edit this user's details.")
+def user_details_view(request):
+    username = request.POST.get('username') or request.user.username
+    
+    try:
+        if request.user.username == username or request.user.groups.filter(name='Manager').exists() or request.user.is_superuser:
+            user = get_object_or_404(User, username=username)
+        else:
+            messages.error(request, "You do not have permission to view or edit this user's details.")
+            return redirect('index')
+    except User.DoesNotExist:
+        messages.error(request, "The requested user was not found.")
         return redirect('index')
     
     if request.method == 'POST':
@@ -131,7 +187,10 @@ def user_details_view(request, username):
     else:
         form = UserUpdateForm(instance=user)
         
-    context = {'user_detail': user, 'form': form}
+    context = {
+        'user_detail': user if user else None,
+        'form': form if user else None,
+    }
     return render(request, 'user_details_view.html', context)
     
 
@@ -176,7 +235,29 @@ def obtain_auth_token_view(request):
 # Once logged in, the user remains authenticated for subsequent views, as long as the session is valid
 # This is set up as the default for HTML authentication right now, but if you want to use above method instead be sure to follow instructions in comments in view and urls.py
 # Endpoint: /restaurant/accounts/login
-# View type: Django built-in, HTML
+# View type: Django built-in class based, HTML
+@throttle_classes([AnonRateThrottle, UserRateThrottle])
+class CustomLoginView(LoginView):
+    def dispatch(self, request, *args, **kwargs):
+        response = super().dispatch(request, *args, **kwargs)
+        if request.method == "POST" and request.user.is_authenticated:
+            messages.success(request, "You have successfully logged in!")
+        return response
+
+    def get_success_url(self):
+        return reverse_lazy('index')
+    
+    def form_invalid(self, form):
+        messages.error(self.request, "Invalid username or password. Please try again.")
+        return self.render_to_response(self.get_context_data(form=form))
+
+    
+# User logout
+# Logs user out and redirects them to the homepage
+# Endpoint: /restaurant/accounts/logout
+# View type: Django built-in class based, HTML
+class CustomLogoutView(LogoutView):
+    next_page = 'index' # Redirects users to the homepage after logout
 
 
 # Staff log API
@@ -187,7 +268,7 @@ def obtain_auth_token_view(request):
 # Endpoint: /restaurant/api/logger
 # View type: Function based, api
 @api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated, IsAdminOrManagerOrEmployee])
+@permission_classes([IsAuthenticated, IsEmployee])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def logger_api_view(request):
     if request.method == 'POST':
@@ -218,7 +299,7 @@ def logger_api_view(request):
 def logger_view(request):
     user = request.user
     
-    if request.method == 'POST':
+    if request.method == 'POST' and 'log_hours' in request.POST:
         if not user.groups.filter(name='Employee').exists() and not user.is_superuser:
             messages.error(request, "Only employees can log their shift hours.")
             return redirect('index') # Redirect after permission check
@@ -226,8 +307,23 @@ def logger_view(request):
         form = LogForm(request.POST)
         if form.is_valid():
             form.save()
+            messages.success(request, "Shift logged successfully.")
             return redirect('logger_view') # Redirect to the same view to clear the form after submission
         
+    elif request.method == 'POST' and 'search_logs' in request.POST:
+        form = LogSearchForm(request.POST)
+        if form.is_valid():
+            query = form.cleaned_data['query']
+            logs = Logger.objects.filter(
+                Q(first_name__icontains=query) |
+                Q(last_name__icontains=query) |
+                Q(start_time__icontains=query) |
+                Q(end_time__icontains=query)
+            )
+        else:
+            messages.error(request, "There was an error with your search.")
+            return redirect('logger_view') # Redirect after form processing error
+    
     else:
         form = LogForm()
         
@@ -237,9 +333,12 @@ def logger_view(request):
     else:
         logs = Logger.objects.filter(first_name=user.first_name, last_name=user.last_name)
         
+    search_form = LogSearchForm()
+        
     context = {
         'form': form,
-        'logs': logs
+        'search_form': search_form,
+        'logs': logs,
     }
     return render(request, 'logger.html', context)
 
@@ -247,12 +346,16 @@ def logger_view(request):
 # Log Details
 # Allows Admin, Manager, and employee who created the log to view all logs made by each employee, 200
     # GET: Displays all logs made by the employee
-# Endpoint: /restaurant/log-details/<int:user_id>
+# Endpoint: /restaurant/log-details
 # View type: Function based, api
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, IsOwnerOrAdminOrManager])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
-def log_details_api_view(request, user_id):
+def log_details_api_view(request):
+    user_id = request.data.get('user_id')
+    if not user_id:
+        return Response({"message": "User ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+    
     user = request.user
     if not (user.id == user_id or user.groups.filter(name='Manager').exists() or user.is_superuser):
         return Response({"message": "You do not have permission to view this data."}, status=status.HTTP_403_FORBIDDEN)
@@ -267,17 +370,29 @@ def log_details_api_view(request, user_id):
 # Log Details
 # Allows Admin, Manager, and employee who created the log to view all logs made by each employee
     # GET: Displays all logs made by the employee
-# Endpoint: /restaurant/log-details/<int:user_id>
+# Endpoint: /restaurant/log-details
 # View type: Function based, HTML
 @login_required
-def log_details_view(request, user_id):
+def log_details_view(request):
+    user_id = request.POST.get('user_id') if request.method == 'POST' else request.user.id
+    
     user = request.user
+    
     if not (user.id == user_id or user.groups.filter(name='Manager').exists() or user.is_superuser):
         messages.error(request, "You do not have permission to view this data.")
         return redirect('index') # Redirect after permission check
         
     logs = Logger.objects.filter(user_id=user_id)
-    context = {'logs': logs}
+    no_logs_message = None
+    
+    if not logs.exists():
+        no_logs_message = "No logs available for this user."
+    
+    context = {
+        'logs': logs,
+        'no_logs_message': no_logs_message if not logs.exists() else None, # Only passes message to template if no log exists
+    }
+    
     return render(request, 'log_details_view.html', context)
 
 
@@ -379,19 +494,16 @@ def comments_view(request):
             return redirect(settings.LOGIN_URL) # Redirects to login for unauthorized users trying to POST
         form = CommentForm(request.POST)
         if form.is_valid():
-            response = request.post(
-                request.build_absolute_uri('/restaurant/comments'),
-                data = form.cleaned_data,
-                headers = {'Authorization': f'Token {request.user.auth_token.key}'}
-            )
-            if response.status_code == 201:
-                return redirect('comments_view') # Redirect after successful form processing
-            else:
-                messages.error(request, "Error submitting comment.")
-                return redirect('comments_view') # Redirect after exception handling
+            comment = form.save(commit=False)
+            comment.user = request.user # Assign the logged-in user to the comment
+            comment.save()
+            messages.success(request, "Comment submitted sucessfully.")
+            return redirect('comments_view') # Redirect after successful form processing
+        else:
+            messages.error(request, "Error submitting comment.")
+            return redirect('comments_view') # Redirect after exception handling
                 
-    response = request.get(request.build_absolute_uri('/restaurant/comments'))
-    comments = response.json() if response.status_code == 200 else []
+    comments = UserComments.objects.all()
     
     context = {
         'form': form,
@@ -480,12 +592,16 @@ def employee_view(request):
     
 # Allows only Admin or Managers to delete users from the Employee group
     # DELETE: Removes user from group, 200
-# Endpoint: /restaurant/api/groups/employee/users/<str:username>
+# Endpoint: /restaurant/api/groups/employee/users/delete
 # View type: Function based, api
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated, IsAdminOrManager])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
-def employee_delete_api_view(request, username):
+def employee_delete_api_view(request):
+    username = request.data.get('username')
+    if not username:
+        return Response({"message": "Username is required."}, status=status.HTTP_400_BAD_REQUEST)
+    
     try:
         employee_group = Group.objects.get(name='Employee')
     except Group.DoesNotExist:
@@ -504,7 +620,7 @@ def employee_delete_api_view(request, username):
 
 # Allows only Admin or Managers to delete users from the Employee group
     # POST: Removes user from group with .remove (forms only use GET and POST)
-# Endpoint: /restaurant/groups/employee/users/<str:username>
+# Endpoint: /restaurant/groups/employee/users/delete
 # View type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
@@ -519,8 +635,9 @@ def employee_delete_view(request):
         messages.error(request, "Employee group not found.")
         return redirect('index') # Redirect after exception handling
     
+    form = EmployeeForm(request.POST or None)
+    
     if request.method == 'POST':
-        form = EmployeeForm(request.POST)
         if form.is_valid():
             username = form.cleaned_data.get('username')
             try:
@@ -531,12 +648,10 @@ def employee_delete_view(request):
                     return redirect('employee_delete_view') # Redirect after successful form processing
                 else:
                     messages.info(request, f"User {username} is not in Employee group.")
-                    return redirect('employee_delete_view') # Redirect after info message
+                return redirect('employee_delete_view') # Redirect after info message
             except User.DoesNotExist:
                 messages.error(request, "User not found.")
                 return redirect('employee_delete_view') # Redirect after exception handling
-    else:
-        form = EmployeeForm()
         
     employees = employee_group.user_set.all()
     context = {'employees': employees, 'form': form}
@@ -641,12 +756,16 @@ def manager_view(request):
 
 # Allows only Admin or Managers to delete users from the Manager group
     # DELETE: Removes user from group, 200
-# Endpoint: /restaurant/api/groups/manager/users/<str:username>
+# Endpoint: /restaurant/api/groups/manager/users/delete
 # View type: Function based, api
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated, IsAdminOrManager])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
-def manager_delete_api_view(request, username):
+def manager_delete_api_view(request):
+    username = request.data.get('username')
+    if not username:
+        return Response({"message": "Username is required."}, status=status.HTTP_400_BAD_REQUEST)
+    
     try:
         manager_group = Group.objects.get(name='Manager')
     except Group.DoesNotExist:
@@ -665,7 +784,7 @@ def manager_delete_api_view(request, username):
 
 # Allows only Admin or Managers to delete users from the Manager group
     # POST: Removes user from group with .remove (forms only use GET and POST)
-# Endpoint: /restaurant/groups/manager/users/<str:username>
+# Endpoint: /restaurant/groups/manager/users/delete
 # View type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
@@ -680,8 +799,9 @@ def manager_delete_view(request):
         messages.error(request, "Manager group not found.")
         return redirect('index') # Redirect after exception handling
     
+    form = ManagerForm(request.POST or None)
+    
     if request.method == 'POST':
-        form = ManagerForm(request.POST)
         if form.is_valid():
             username = form.cleaned_data.get('username')
             try:
@@ -695,9 +815,7 @@ def manager_delete_view(request):
                     return redirect('manager_delete_view') # Redirect after info message
             except User.DoesNotExist:
                 messages.error(request, "User not found.")
-                return redirect('manager_delete_view') # Redirect after exception handling
-    else:
-        form = ManagerForm()
+                return redirect('manager_delete_view')  # Redirect after exception handling
         
     managers = manager_group.user_set.all()
     context = {'managers': managers, 'form': form}
@@ -711,7 +829,7 @@ def manager_delete_view(request):
 # Endpoint: /restaurant/api/groups/delivery-crew/users
 # view type: Function based, api
 @api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated, IsAdminOrManagerOrEmployee])
+@permission_classes([IsAuthenticated, IsEmployee])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
 def delivery_crew_api_view(request):
     try:
@@ -807,12 +925,16 @@ def delivery_crew_view(request):
 
 # Allows only Admin or Managers to delete users from the Delivery Crew group
     # DELETE: Removes user from group
-# Endpoint: /restaurant/api/groups/delivery-crew/users/<str:username>
+# Endpoint: /restaurant/api/groups/delivery-crew/users/delete
 # View type: Function based, api
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated, IsAdminOrManager])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
-def delivery_crew_delete_api_view(request, username):
+def delivery_crew_delete_api_view(request):
+    username = request.data.get('username')
+    if not username:
+        return Response({"message": "Username is required."}, status=status.HTTP_400_BAD_REQUEST)
+    
     try:
         delivery_crew_group = Group.objects.get(name='Delivery Crew')
     except Group.DoesNotExist:
@@ -831,7 +953,7 @@ def delivery_crew_delete_api_view(request, username):
 
 # Allows only Admin or Managers to delete users from the Delivery Crew group
     # POST: Removes user from group with .remove (forms only use GET and POST)
-# Endpoint: /restaurant/groups/delivery-crew/users/<str:username>
+# Endpoint: /restaurant/groups/delivery-crew/users/delete
 # View type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
@@ -845,9 +967,10 @@ def delivery_crew_delete_view(request):
     except Group.DoesNotExist:
         messages.error(request, "Delivery Crew group not found.")
         return redirect('index') # Redirect after exception handling
+    
+    form = DeliveryCrewForm(request.POST or None)
         
     if request.method == 'POST':
-        form = DeliveryCrewForm(request.POST)
         if form.is_valid():
             username = form.cleaned_data.get('username')
             try:
@@ -862,8 +985,6 @@ def delivery_crew_delete_view(request):
             except User.DoesNotExist:
                 messages.error(request, "User not found.")
                 return redirect('delivery_crew_delete_view') # Redirect after exception handling
-    else:
-        form = DeliveryCrewForm()
     
     drivers = delivery_crew_group.user_set.all()
     context = {'drivers': drivers, 'form': form}
@@ -874,12 +995,12 @@ def delivery_crew_delete_view(request):
     # GET: Displays categories, 200
 # Allows only Admin or Managers to add categories
     # POST: Adds a category, 201
-# Endpoint: /restaurant/api/category
+# Endpoint: /restaurant/api/categories
 # View type: Function based, api
 @api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
-def category_api_view(request):
+def categories_api_view(request):
     if request.method == 'GET':
         categories = Category.objects.all()
         serializer = CategorySerializer(categories, many=True)
@@ -900,10 +1021,10 @@ def category_api_view(request):
     # GET: Displays categories
 # Allows only Admin or Managers to add categories
     # POST: Adds a category
-# Endpoint: /restaurant/category
+# Endpoint: /restaurant/categories
 # View type: Function based, HTML
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
-def category_view(request):
+def categories_view(request):
     categories = Category.objects.all()
     form = CategoryForm()
     
@@ -926,12 +1047,16 @@ def category_view(request):
 
 # Allows only Admin or Managers to delete categories
     # DELETE: Removes a category
-# Endpoint: /restaurant/api/category/delete/<slug:slug>
+# Endpoint: /restaurant/api/category/delete
 # View type: Function based, api
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated, IsAdminOrManager])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
-def category_delete_api_view(request, slug):
+def category_delete_api_view(request):
+    slug = request.data.get('slug')
+    if not slug:
+        return Response({"message": "Slug is required."}, status=status.HTTP_400_BAD_REQUEST)
+    
     try:
         category = get_object_or_404(Category, slug=slug)
         category.delete()
@@ -942,7 +1067,7 @@ def category_delete_api_view(request, slug):
 
 # Allows only Admin or Managers to delete categories
     # POST: Removes a category (forms only use GET and POST)
-# Endpoint: /restaurant/category/delete/<slug:slug>
+# Endpoint: /restaurant/category/delete
 # View type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
@@ -952,17 +1077,18 @@ def category_delete_view(request):
         return redirect('category_view') # Redirect after permission check
     
     categories = Category.objects.all()
-    form = CategoryDeleteForm()
+    
+    form = CategoryDeleteForm(request.POST or None)
     
     if request.method == 'POST':
-        form = CategoryDeleteForm(request.POST)
         if form.is_valid():
+            slug = form.cleaned_data.get('slug')
             try:
-                category = Category.objects.get(slug=form.cleaned_data['slug'])
+                category = Category.objects.get(slug=slug)
                 category.delete()
                 messages.success(request, "Category deleted successfully.")
                 return redirect('category_delete_view') # Redirect after successful form processing
-            except Category.DoesNotExist:
+            except Category.DoesNotExist:    
                 messages.error(request, "Category not found.")
                 return redirect('category_delete_view') # Redirect after exception handling
         
@@ -977,7 +1103,12 @@ def category_delete_view(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 @throttle_classes([AllowAny, UserRateThrottle])
-def category_details_api_view(request, category_slug):
+def category_details_api_view(request):
+    category_slug = request.GET.get('slug') # Get the category slug from query parameter
+    
+    if not category_slug:
+        return Response({"message": "Category slug is required."}, status=status.HTTP_400_BAD_REQUEST)
+    
     try:
         category = Category.objects.get(slug=category_slug)
     except Category.DoesNotExist:
@@ -995,10 +1126,16 @@ def category_details_api_view(request, category_slug):
 
 # Allows anyone to view the items in each category
     # GET: Displays items in category
-# Endpoint: /restaurant/category/<slug:category_slug>
+# Endpoint: /restaurant/category
 # View type: Function based, HTML
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
-def category_details_view(request, category_slug):
+def category_details_view(request):
+    category_slug = request.GET.get('slug')
+    
+    if not category_slug:
+        messages.error(request, "Category slug is required.")
+        return redirect('menu_view') # Redirect after missing slug handling
+    
     try:
         category = Category.objects.get(slug=category_slug)
     except Category.DoesNotExist:
@@ -1083,12 +1220,17 @@ def menu_view(request):
     # GET: Displays menu item, 200
 # Allows only authenticated users to add menu items to their cart
     # POST: Adds item to cart, sets the authenticated user as the user id for these cart items, 201
-# Endpoint: /restaurant/api/menu-item/<slug:slug>
+# Endpoint: /restaurant/api/menu-item
 # View type: Function based, api
 @api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
-def menu_item_api_view(request, slug):
+def menu_item_api_view(request):
+    slug = request.GET.get('slug')
+    
+    if not slug:
+        return Response({"message": "Menu item slug is required."}, status=status.HTTP_400_BAD_REQUEST)
+    
     menu_item = get_object_or_404(MenuItem, slug=slug)
     
     if request.method == 'GET':
@@ -1110,10 +1252,16 @@ def menu_item_api_view(request, slug):
     # GET: Displays menu item
 # Allows only authenticated users to add items to their cart
     # POST: Adds item to cart, sets the authenticated user as the user id for these cart items
-# Endpoint: /restaurant/menu-item/<slug:slug>
+# Endpoint: /restaurant/menu-item
 # View type: Function based, HTML
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
-def menu_item_view(request, slug):
+def menu_item_view(request):
+    slug = request.GET.get('slug')
+    
+    if not slug:
+        messages.error(request, "Menu item slug is required.")
+        return redirect('menu_view')
+    
     menu_item = get_object_or_404(MenuItem, slug=slug)
     cart_form = CartForm(initial={'menuitem':menu_item})
     
@@ -1135,12 +1283,16 @@ def menu_item_view(request, slug):
 
 # Allows only Admin or Managers to delete menu items
     # DELETE: Removes menu item, 200
-# Endpoint: /restaurant/api/menu-item/delete/<slug:slug>
+# Endpoint: /restaurant/api/menu-item/delete
 # View type: Function based, api
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated, IsAdminOrManager])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
-def menu_item_delete_api_view(request, slug):
+def menu_item_delete_api_view(request):
+    slug = request.data.get('slug')
+    if not slug:
+        return Response({"message": "Slug is required."}, status=status.HTTP_400_BAD_REQUEST)
+    
     try:
         menu_item = get_object_or_404(MenuItem, slug=slug)
         menu_item.delete()
@@ -1151,7 +1303,7 @@ def menu_item_delete_api_view(request, slug):
     
 # Allows only Admin or Managers to delete menu items
     # POST: Removes menu item (forms only use GET and POST)
-# Endpoint: /restaurant/menu-item/delete/<slug:slug>
+# Endpoint: /restaurant/menu-item/delete
 # View type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
@@ -1161,13 +1313,14 @@ def menu_item_delete_view(request):
         return redirect('menu_view') # Redirect after permission check
     
     menu_items = MenuItem.objects.all()
-    form = MenuItemDeleteForm()
+    
+    form = MenuItemDeleteForm(request.POST or None)
     
     if request.method == 'POST':
-        form = MenuItemDeleteForm(request.POST)
         if form.is_valid():
+            slug = form.cleaned_data.get('slug')
             try:
-                menu_item = MenuItem.objects.get(slug=form.cleaned_data['slug'])
+                menu_item = MenuItem.objects.get(slug=slug)
                 menu_item.delete()
                 messages.success(request, "Menu item deleted successfully.")
                 return redirect('menu_item_delete_view') # Redirect after successful form processing
@@ -1369,12 +1522,29 @@ def orders_api_view(request):
 def orders_view(request):
     user = request.user
     
-    if request.method == 'POST':
-        if 'create_order' in request.POST:
+    cart_items = Cart.objects.filter(user=user)
+    
+    if request.method == 'POST' and 'search_orders' in request.POST:
+        form = OrderSearchForm(request.POST)
+        if form.is_valid():
+            query = form.cleaned_data['query']
+            if user.is_superuser() or user.groups.filter(name='Employee').exists() and not user.groups.filter(name='Delivery Crew').exists():
+                orders = Order.objects.filter(
+                    Q(user__username__icontains=query) |
+                    Q(order_status__icontains=query) |
+                    Q(delivery_crew__username__icontains=query)
+                )
+            else:
+                orders = Order.objects.filter(user=user, user__username__icontains=query)
+        else:
+            messages.error(request, "There was an error with your search.")
+            return redirect('orders_view') # Redirect after form processing error
+    else:
+        form = OrderSearchForm()
+        if request.method == 'POST'and 'create_order' in request.POST:
             if not user.is_authenticated:
                 return redirect('settings.LOGIN_URL') # Redirect to login for unauthenticated users
             
-            cart_items = Cart.objects.filter(user=user)
             if not cart_items.exists():
                 messages.error(request, "Cart is empty. Please add items to your cart to place an order.")
                 return redirect('orders_view')  # Redirect after exception handling
@@ -1395,18 +1565,23 @@ def orders_view(request):
             messages.success(request, "Order placed successfully.")
             return redirect('orders_view') # Redirect after successful form processing
             
-    if user.is_superuser or user.groups.filter(name='Employee').exists():
-        if user.groups.filter(name='Delivery Crew').exists():
-            # Delivery Crew can only view orders assigned to them
-            orders = Order.objects.filter(delivery_crew=user)
+        if user.is_superuser or user.groups.filter(name='Employee').exists():
+            if user.groups.filter(name='Delivery Crew').exists():
+                # Delivery Crew can only view orders assigned to them
+                orders = Order.objects.filter(delivery_crew=user)
+            else:
+                # Employees (excluding Delivery Crew) can view all orders
+                orders = Order.objects.all()
         else:
-            # Employees (excluding Delivery Crew) can view all orders
-            orders = Order.objects.all()
-    else:
-        # Customers can view only their own orders
-        orders = Order.objects.filter(user=user)
+            # Customers can view only their own orders
+            orders = Order.objects.filter(user=user)
         
-    context = {'orders': orders}
+    context = {
+        'orders': orders,
+        'form': form,
+        'cart_items': cart_items,
+    }
+    
     return render(request, 'orders_view.html', context)
 
 
@@ -1420,20 +1595,26 @@ def orders_view(request):
     # PATCH: Updates order status, 0 (False, not yet delivered) or 1 (True, delivered), 200
 # Allows only Admin or Managers to delete the order
     # DELETE: Deletes order, 200
-# Endpoint: /restaurant/api/orders/<int:order_id>
+# Endpoint: /restaurant/api/order
 # View type: Function based, api
 @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
 @permission_classes([IsAuthenticated, IsEmployeeOrAssignedDeliveryCrewOrCustomerOrAdmin])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
-def order_details_api_view(request, order_id):
+def order_details_api_view(request):
+    order_id = request.GET.get('order_id')
+    
+    if not order_id:
+        return Response({"message": "Order ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+    
     order = get_object_or_404(Order, id=order_id)
+    user = request.user
     
     if request.method == 'GET':
         serializer = OrderSerializer(order, context={'request': request})
         return Response(serializer.data)
     
     elif request.method == 'PUT':
-        if not request.user.groups.filter(name='Delivery Crew').exists():
+        if not user.groups.filter(name='Delivery Crew').exists():
             serializer = OrderSerializer(order, data=request.data, partial=True, context={'request': request})
             if serializer.is_valid():
                 serializer.save()
@@ -1444,7 +1625,7 @@ def order_details_api_view(request, order_id):
         
     elif request.method == 'PATCH':
         if 'ready_for_delivery' in request.data:
-            if not request.user.groups.filter(name='Delivery Crew').exists():
+            if not user.groups.filter(name='Delivery Crew').exists():
                 order.ready_for_delivery = request.data['ready_for_delivery']
                 order.save()
                 return Response({"message": "Order ready-for-delivery status updated."}, status=status.HTTP_200_OK)
@@ -1452,7 +1633,7 @@ def order_details_api_view(request, order_id):
                 return Response({"message": "Delivery Crew cannot update this status."}, status=status.HTTP_403_FORBIDDEN)
             
         if 'order_status' in request.data:
-            if request.user.groups.filter(name='Manager').exists() or request.user.groups.filter(name='Delivery Crew').exists() or request.user.is_superuser:
+            if user.groups.filter(name='Manager').exists() or user.groups.filter(name='Delivery Crew').exists() or user.is_superuser:
                 order.order_status = request.data['order_status']
                 order.save()
                 return Response({"message": "Order delivery status updated."}, status=status.HTTP_200_OK)
@@ -1460,7 +1641,7 @@ def order_details_api_view(request, order_id):
                 return Response({"message": "Only Delivery Crew, Managers, or Admin can update delivery status."}, status=status.HTTP_403_FORBIDDEN)
             
     elif request.method == 'DELETE':
-        if request.user.groups.filter(name='Manager').exists() or request.user.is_superuser:
+        if user.groups.filter(name='Manager').exists() or user.is_superuser:
             order.delete()
             return Response({"message": "Order deleted."}, status=status.HTTP_200_OK)
         else:
@@ -1478,11 +1659,17 @@ def order_details_api_view(request, order_id):
 # Allows only Admin or Managers to delete the order
     # POST (delete_order): Deletes order
 # Uses .has_permission for conditional auth
-# Endpoint: /restaurant/orders/<int:order_id>
+# Endpoint: /restaurant/order
 # View type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
-def order_details_view(request, order_id):
+def order_details_view(request):
+    order_id = request.GET.get('order_id')
+    
+    if not order_id:
+        messages.error(request, "Order ID is required.")
+        return redirect('orders_view')
+    
     order = get_object_or_404(Order, id=order_id)
     user = request.user
     
@@ -1564,7 +1751,7 @@ def order_details_view(request, order_id):
     context = {
         'order': order,
         'order_update_form': order_update_form,
-        'assign_delivery_crew_form': assign_delivery_crew_form
+        'assign_delivery_crew_form': assign_delivery_crew_form,
     }
     
     return render(request, 'order_details_view.html', context)
@@ -1674,9 +1861,27 @@ def reservations_view(request):
         return redirect('index') # Redirect after permission check
     
     bookings = Booking.objects.filter(reservation_status='current')
-    context = {'bookings': bookings}
+    
+    if request.method == 'POST':
+        form = ReservationSearchForm(request.POST)
+        if form.is_valid():
+            query = form.cleaned_data['query']
+            bookings = bookings.filter(
+                Q(name__icontains=query) |
+                Q(no_of_guests__icontains=query) |
+                Q(booking_date__icontains=query)
+            )
+        else:
+            messages.error(request, "There was an error with your search.")
+            return redirect('reservations_view') # Redirect after form processing error
+    else:
+        form = ReservationSearchForm()
+    
+    context = {'bookings': bookings, 'form': form}
+    
     if not bookings.exists():
         context['no_reservations_message'] = "No current reservations."
+        
     return render(request, 'reservations_view.html', context)
 
 
@@ -1706,7 +1911,23 @@ def old_reservations_view(request):
         return redirect('index') # Redirect after permission check
     
     bookings = Booking.objects.filter(reservation_status__in=['completed', 'missed'])
-    context = {'bookings': bookings}
+    
+    if request.method == 'POST':
+        form = ReservationSearchForm(request.POST)
+        if form.is_valid():
+            query = form.cleaned_data['query']
+            bookings = bookings.filter(
+                Q(name__icontains=query) |
+                Q(no_of_guests__icontains=query) |
+                Q(booking_date__icontains=query)
+            )
+        else:
+            messages.error(request, "There was an error with your search.")
+            return redirect('reservations_view') # Redirect after form processing error
+    else:
+        form = ReservationSearchForm()
+    
+    context = {'bookings': bookings, 'form': form}
     return render(request, 'old_reservations_view.html', context)
 
 
@@ -1716,12 +1937,17 @@ def old_reservations_view(request):
     # POST: Sets the status of a reservation, 201
 # Allows only Admin or Managers to remove a reservation
     # DELETE: Removes a reservation
-# Endpoint: /restaurant/api/reservations/<int:reservation_id>
+# Endpoint: /restaurant/api/reservation
 # View type: Function based, api
 @api_view(['GET', 'POST', 'DELETE'])
 @permission_classes([IsAuthenticated])
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
-def reservation_details_api_view(request, reservation_id):
+def reservation_details_api_view(request):
+    reservation_id = request.GET.get('reservation_id')
+    
+    if not reservation_id:
+        return Response({"message": "Reservation ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+    
     booking = get_object_or_404(Booking, id=reservation_id)
     user = request.user
     
@@ -1757,11 +1983,17 @@ def reservation_details_api_view(request, reservation_id):
     # POST: Sets the status of a reservation
 # Allows only Managers or Admin to delete reservations
     # POST: Removes a reservation
-# Endpoint: /restaurant/reservations/<int:reservation_id>
+# Endpoint: /restaurant/reservation
 # View type: Function based, HTML
 @login_required
 @throttle_classes([AnonRateThrottle, UserRateThrottle])
-def reservation_details_view(request, reservation_id):
+def reservation_details_view(request):
+    reservation_id = request.GET.get('reservation_id')
+    
+    if not reservation_id:
+        messages.error(request, "Reservation ID is required.")
+        return redirect('reservations_view')
+    
     reservation = get_object_or_404(Booking, id=reservation_id)
     user = request.user
     

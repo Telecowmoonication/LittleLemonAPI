@@ -1,21 +1,19 @@
 .search-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
-    background-color: #f4f4f4;
-    border-radius: 5px;
-    margin: 20px 0;
+    display: flex; /* Ensures the icon, input, and button are in a row */
+    align-items: center; /* Aligns items vertically within the container */
+    justify-content: flex-end;
+    width: 100%; /* Takes the remaining space in the header */
 }
 
 .search-container img.icon {
-    margin-right: 10px;
+    height: 32px; 
+    margin-right: 8px;
+    vertical-align: -10px;
 }
 
 .searchBox {
-    width: 300px;
-    padding: 10px;
-    font-size: 1.25rem;
+    padding: 8px;
+    font-size: 1rem;
     border: 1px solid #ddd;
     border-radius: 5px;
     margin-right: 10px;
@@ -23,15 +21,15 @@
 }
 
 .searchButton {
-    padding: 10px 20px;
-    font-size: 1.25rem;
-    background-color: #495E57;
-    color: #fff;
+    padding: 8px 16px;
+    font-size: 1rem;
+    background-color: #fcf34b;
+    color: #6563ff;
     border: none;
     cursor: pointer;
     border-radius: 5px;
 }
 
 .searchButton:hover {
-    background-color: #333333;
+    background-color: rgba(101,99,255,0.3);
 }

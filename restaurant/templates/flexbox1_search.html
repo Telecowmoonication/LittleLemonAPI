@@ -1,9 +1,7 @@
 <!-- Does not need <!DOCTYPE html>, {% load static %}, and other tags like <html>, <head>, and <body> because they will be included in the base.html -->
-<div class="search-container">
-    <form method="get" action="{% url 'search_view' %}">
+<form method="get" action="{% url 'search_view' %}">
         {% csrf_token %}
         <img class="icon" src="{% static 'images/purple_search_icon.svg' %}" alt="Search">
         <input id="searchBox" class="searchBox" type="search" name="search" placeholder="Enter text here...">
         <button type="submit" class="searchButton">Search</button>
-    </form>
-</div>
+</form>

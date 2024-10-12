@@ -28,7 +28,10 @@
 
     <body>
         <header>
-            <img src="{% static 'images/logo.png' %}" alt="Little Lemon Logo"/>
+            <img src="{% static 'images/logo_purple.webp' %}" alt="Little Lemon Logo" class="header-logo"/>
+            <div class="search-container">
+                {% include 'flexbox1_search.html' %}
+            </div>
         </header>
 
         <!-- include navigation menu -->
@@ -36,17 +39,12 @@
             {% include 'flexbox2_nav_menu.html' %}
         </nav>
 
-        <!-- include search box -->
-        <section>
-            {% include 'flexbox1_search.html' %}
-        </section>
-
 
         <!-- messages -->
         {% if messages %}
             <div class="messages-container">
                 {% for message in messages %}
-                    <div class="alert {{ message.tags }}">{{ messsage }}</div>
+                    <div class="alert {{ message.tags }}">{{ message }}</div>
                 {% endfor %}
             </div>
         {% endif %}
@@ -60,12 +58,14 @@
 
         <footer>
             <article>
-                <img src="{% static 'images/logo_footer.png' %}" alt="Little Lemon footer logo"/>
+                <img src="{% static 'images/logo_footer_purple.webp' %}" alt="Little Lemon footer logo"/>
             </article>
 
             <article>
                 <p>Copyright {{ current_year }} Little Lemon</p>
             </article>
         </footer>
+
+        <script src="{% static 'js/flexbox2_nav_menu.js' %}"></script>
     </body>
 </html>

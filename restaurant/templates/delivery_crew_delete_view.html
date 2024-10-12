@@ -22,12 +22,16 @@
         <thead>
             <tr>
                 <th>Username</th>
+                <th>Action</th>
             </tr>
         </thead>
         <tbody>
             {% for driver in drivers %}
                 <tr>
                     <td>{{ driver.username }}</td>
+                    <td>
+                        <a href="{% url 'delivery_crew_delete_view' driver.username %}">Delete</a>
+                    </td>
                 </tr>
             {% forend %}
         </tbody>

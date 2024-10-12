@@ -22,6 +22,7 @@
         <thead>
             <tr>
                 <th>Category</th>
+                <th>Action></th>
             </tr>
         </thead>
 
@@ -29,6 +30,9 @@
             {% for category in categories %}
                 <tr>
                     <td>{{ category.slug }}</td>
+                    <td>
+                        <a href="{% url 'category_delete_view' category.slug %}">Delete</a>
+                    </td>
                 </tr>
             {% endfor %}
         </tbody>

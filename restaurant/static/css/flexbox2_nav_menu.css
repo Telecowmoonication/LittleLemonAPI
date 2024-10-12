@@ -1,8 +1,9 @@
+/* Basic navigation menu */
 .nav-container {
     display: flex;
     justify-content: space-around;
     padding: 20px;
-    background-color: #495E57;
+    background-color: #fcf34b;
     list-style: none;
     margin: 0;
 }
@@ -12,7 +13,7 @@
 }
 
 .nav-container a {
-    color: #EDEFEE;
+    color: #6563ff;
     font-size: 1.25rem;
     text-decoration: none;
     padding: 10px;
@@ -20,5 +21,106 @@
 }
 
 .nav-container a:hover {
-    background-color: #333333;
+    background-color: rgba(101,99,255,0.3);
+
+}
+
+.logout-form button {
+    background: none;
+    border: none;
+    color: #6563ff;
+    font-size: 1.25rem;
+    text-decoration: none;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.logout-form button:hover {
+    background-color: rgba(101, 99, 255, 0.3);
+}
+
+/* Hamburger menu */
+.hamburger-icon {
+    font-size: 30px;
+    cursor: pointer;
+    display: none; /* Hidden by default */
+}
+
+
+@media (max-width: 768px) {
+    .nav-container {
+        display: none;
+        flex-direction: column;
+        width: 100%;
+        background-color: #fcf34b;
+        position: absolute;
+        top: 60px;
+        left: 0;
+    }
+
+    .nav-container li {
+        text-align: center;
+        margin: 10px 0;
+    }
+
+    .hamburger-icon {
+        display: block; /* Show hamburger icon on small screens */
+    }
+}
+
+/* Dropdown menu for Menu, Account, Admin Tools, Employee Tools */
+.menu-dropdown,
+.account-dropdown,
+.admin-dropdown,
+.employee-dropdown {
+    position: relative;
+}
+
+.menu-dropdown .dropdown-content,
+.account-dropdown .dropdown-content,
+.admin-dropdown .dropdown-content,
+.employee-dropdown .dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #fcf34b;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
+    z-index: 1;
+    top: 115%; /* Moves the dropdown below the "Menu" text */
+    /* Center dropdown relative to the parent Menu */
+    left: 50%; /* Position it halfway from the left */
+    transform: translateX(-50%); /* Shift it back to center */
+}
+
+.menu-dropdown .dropdown-content li,
+.account-dropdown .dropdown-content li,
+.admin-dropdown .dropdown-content li,
+.employee-dropdown .dropdown-content li {
+    padding: 10px;
+    margin: 0;
+    list-style: none;
+}
+
+.menu-dropdown .dropdown-content li a,
+.account-dropdown .dropdown-content li a,
+.admin-dropdown .dropdown-content li a,
+.employee-dropdown .dropdown-content li a {
+    color: #6563ff;
+    text-decoration: none;
+    display: block;
+}
+
+.menu-dropdown:hover .dropdown-content,
+.account-dropdown:hover .dropdown-content,
+.admin-dropdown:hover .dropdown-content,
+.employee-dropdown:hover .dropdown-content {
+    display: block;
+}
+
+.menu-dropdown .dropdown-content li a:hover,
+.account-dropdown .dropdown-content li a:hover,
+.admin-dropdown .dropdown-content li a:hover,
+.employee-dropdown .dropdown-content li a:hover {
+    background-color: rgba(101, 99, 255, 0.3);
 }
