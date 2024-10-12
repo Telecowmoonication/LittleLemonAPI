@@ -1,14 +1,16 @@
 from django import forms
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from .models import Logger, UserComments, Category, MenuItem, Cart, Order, Booking
 import datetime
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.forms import AuthenticationForm
 
+User = get_user_model()
+
 # Form for users to enter their registration info
 class UserRegForm(forms.ModelForm):
-    password = forms.CharField(widget=forms.PasswordInput, validators=[validate_password])
-    password2 = forms.CharField(widget=forms.PasswordInput)
+    password = forms.CharField(widget=forms.PasswordInput, validators=[validate_password], label="Password")
+    password2 = forms.CharField(widget=forms.PasswordInput, label="Confirm password")
     
     class Meta:
         model = User
@@ -36,6 +38,11 @@ class UserUpdateForm(forms.ModelForm):
         if User.objects.exclude(pk=self.instance.pk).filter(email=email).exists():
             raise forms.ValidationError("This email address is already in use.")
         return email
+
+
+# Search/filter through users
+class UserSearchForm(forms.Form):
+    query = forms.CharField(label="Search Users", max_length=150, required=False)
         
 
 # Form users fill out to get an Auth token
@@ -60,7 +67,15 @@ class LoginForm(AuthenticationForm):
 class LogForm(forms.ModelForm):
     class Meta:
         model = Logger
-        fields = '__all__'
+        fields = ['first_name', 'last_name', 'log_type', 'start_time', 'end_time']
+
+        
+# For searching employee logs
+class LogSearchForm(forms.Form):
+    query = forms.CharField(
+        max_length=100,
+        widget=forms.TextInput(attrs={'placeholder': 'Search logs...'})
+    )
         
   
 # Form for user comments
@@ -144,6 +159,14 @@ class CartForm(forms.ModelForm):
 #         model = Order
 #         fields = ['user', 'delivery_crew', 'order_status', 'ready_for_delivery', 'total', 'time']
         
+
+# Form for searching/filtering orders
+class OrderSearchForm(forms.Form):
+    query = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'placeholder': 'Search orders...'})
+    )
+
         
 # Form for updating order and delivery statuses
 class OrderUpdateForm(forms.ModelForm):
@@ -199,6 +222,15 @@ class BookingForm(forms.ModelForm):
         
         return booking_date
     
+
+# Form for searching/filtering reservations
+class ReservationSearchForm(forms.Form):
+    query = forms.CharField(
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={'placeholder': 'Search reservations...'})
+    )
+
     
 # Form for updating reservation status of a booking
 class ReservationStatusForm(forms.ModelForm):

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block title %}All Users{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/all_users_view.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="users-container">
+    <h1>All Registered Users</h1>
+
+    <form method="post" class="search-form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" name="search-users" class="btn btn-primary">Search</button>
+    </form>
+
+    <table class="users-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Email</th>
+                <th>First Name</th>
+                <th>Last Name</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for user in users %}
+                <tr>
+                    <td>{{ user.id }}</td>
+                    <td>{{ user.username }}</td>
+                    <td>{{ user.email }}</td>
+                    <td>{{ user.first_name }}</td>
+                    <td>{{ user.last_name }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

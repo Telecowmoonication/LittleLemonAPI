@@ -11,25 +11,30 @@
 {% block content %}
 <div class='reservation-details-container'>
     <h1>Reservation Details</h1>
-    <p><strong>Name:</strong> {{ reservation.name }}</p>
-    <p><strong>Number of Guests:</strong> {{ reservation.no_of_guests }}</p>
-    <p><strong>Booking Date:</strong> {{ reservation.booking_date }}</p>
-    <p><strong>Status:</strong> {{ reservation.get_reservation_status_display }}</p>
 
-    {% if user.groups.filter(name='Employee').exclude(name='Delivery Crew').exists() or user.is_superuser %}
-        <form method="post" class="reservation-status-form">
-            {% csrf_token %}
-            {{ reservation_status_form.as_p }}
-            <button type="submit" name="reservation_status" class="btn btn-primary">Update Status</button>
-        </form>
-    {% endif %}
+    {% if reservation %}
+        <p><strong>Name:</strong> {{ reservation.name }}</p>
+        <p><strong>Number of Guests:</strong> {{ reservation.no_of_guests }}</p>
+        <p><strong>Booking Date:</strong> {{ reservation.booking_date }}</p>
+        <p><strong>Status:</strong> {{ reservation.get_reservation_status_display }}</p>
 
-    {% if user.groups.filter(name='Manager').exists() or user.is_superuser %}
-        <form method="post" class="delete-reservation-form">
-            {% csrf_token %}
-            {{ delete_reservation_form.as_p }}
-            <button type="submit" name="remove_selected" class="btn btn-danger">Delete Reservation</button>
-        </form>
+        {% if user.groups.filter(name='Employee').exclude(name='Delivery Crew').exists() or user.is_superuser %}
+            <form method="post" class="reservation-status-form">
+                {% csrf_token %}
+                {{ reservation_status_form.as_p }}
+                <button type="submit" name="reservation_status" class="btn btn-primary">Update Status</button>
+            </form>
+        {% endif %}
+
+        {% if user.groups.filter(name='Manager').exists() or user.is_superuser %}
+            <form method="post" class="delete-reservation-form">
+                {% csrf_token %}
+                {{ delete_reservation_form.as_p }}
+                <button type="submit" name="remove_selected" class="btn btn-danger">Delete Reservation</button>
+            </form>
+        {% endif %}
+    {% else %}
+        <p>No reservation details available.</p>
     {% endif %}
 </div>
 {% endblock %}

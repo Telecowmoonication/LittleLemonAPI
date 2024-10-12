@@ -1,7 +1,9 @@
 .logger-container {
+    max-width: 800px;
     margin: 0 auto;
     padding: 20px;
-    max-width: 800px;
+    background-color: #f9f9f9;
+    border-radius: 10px;
 }
 
 .logger-container h1, 

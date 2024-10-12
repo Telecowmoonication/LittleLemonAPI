@@ -11,26 +11,37 @@
 {% block content %}
 <div class="log-details-container">
     <h1>Log Details</h1>
-    <table>
-        <thead>
-            <tr>
-                <th>First Name</th>
-                <th>Last Name</th>
-                <th>Log Type</th>
-                <th>Time Log</th>
-            </tr>
-        </thead>
 
-        <tbody>
-            {% for log in logs %}
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="user_id" value="{{ user.id }}">
+        <button type="submit" class="btn btn-primary">View My Logs</button>
+    </form>
+    
+    {% if no_logs_message %}
+        <p>{{ no_logs_message }}</p>
+    {% else %}
+        <table>
+            <thead>
                 <tr>
-                    <td>{% log.first_name %}</td>
-                    <td>{% log.last_name %}</td>
-                    <td>{% log.log_type %}</td>
-                    <td>{% log.time_log %}</td>
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th>Log Type</th>
+                    <th>Time Log</th>
                 </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+            </thead>
+
+            <tbody>
+                {% for log in logs %}
+                    <tr>
+                        <td>{% log.first_name %}</td>
+                        <td>{% log.last_name %}</td>
+                        <td>{% log.log_type %}</td>
+                        <td>{% log.time_log %}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
 </div>
 {% endblock %}

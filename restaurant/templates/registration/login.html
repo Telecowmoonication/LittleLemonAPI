@@ -6,13 +6,13 @@
 {% block title %}Login{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/login_view.css' %}">
+<link rel="stylesheet" href="{% static 'css/login.css' %}">
 {% endblock %}
 
 {% block content %}
 <div class="login-container">
     <h1>Login</h1>
-    <form method="post" action="{% url 'login' %}">
+    <form method="post" action="{% url 'login_view' %}">
         {% csrf_token %}
         <div class="form-group">
             <label for="username">Username</label>
@@ -24,5 +24,13 @@
         </div>
         <button type="submit" class="btn btn-primary">Login</button>
     </form>
+
+    {% if messages %}
+    <div class="messages-container">
+        {% for message in messages %}
+            <div class="alert {{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

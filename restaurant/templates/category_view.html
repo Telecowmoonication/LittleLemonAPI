@@ -14,7 +14,7 @@
     <form method="post">
         {% csrf_token %}
         {{ form.as_p }}
-        {% if user.is_authenticated and (user.groups.filter(name='Manager').exists() or user.is_superuser) %}
+        {% if user.is_authenticated and user.groups.filter.name == 'Manager' or user.is_superuser %}
             <button type="submit">Add Category</button>
         {% endif %}
     </form>

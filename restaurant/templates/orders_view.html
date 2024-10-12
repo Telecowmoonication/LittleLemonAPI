@@ -12,17 +12,30 @@
 <div class="orders-container">
     <h1>Orders</h1>
 
+    <h2>Search Orders</h2>
+    <form method="post" class="search-form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" name="search_orders" class="btn btn-primary">Search</button>
+    </form>
+
+    <!-- Shows only if there are items in the cart -->
+    {% if cart_items %}
     <h2>Place a New Order</h2>
     <form method="post">
         {% csrf_token %}
-        <button type="submit" name="create_order" class="btn btn-primary">Place Order</button>
+        <button type="submit" name="create_order" class="btn btn-primary">Place an Order</button>
     </form>
+    {% else %}
+    <p>Your cart is empty. Please add items to your cart to place an order.</p>
+    {% endif %}
 
     <h2>Order History</h2>
-    <table>
+    <table class="table">
         <thead>
             <tr>
                 <th>Order ID</th>
+                <th>Customer</th>
                 <th>Status</th>
                 <th>Subtotal</th>
                 <th>Total</th>
@@ -35,11 +48,12 @@
             {% for order in orders %}
                 <tr>
                     <td>{{ order.id }}</td>
+                    <td>{{ order.user.username }}</td>
                     <td>{{ order.order_status|yesno:"Delivered,Out for Delivery" }}</td>
                     <td>{{ order.subtotal }}</td>
                     <td>{{ order.price_after_tax }}</td>
                     <td>{{ order.time }}</td>
-                    <td><a href="{% url 'order_detail_view' order.id %}">View Order</td>
+                    <td><a href="{% url 'order_detail_view' order.id %}">View Order Details</td>
                 </tr>
             {% endfor %}
         </tbody>

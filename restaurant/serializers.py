@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.utils import timezone
 from django.utils.text import slugify
@@ -11,6 +11,8 @@ from datetime import time
 import re
 import bleach
 import datetime
+
+User = get_user_model()
 
 # Serializes User model for use with API, links to user instance
 class UserSerializer(serializers.HyperlinkedModelSerializer):
@@ -67,11 +69,12 @@ class UserRegSerializer(serializers.ModelSerializer):
 # Serializes and validates employee hours worked, links to log details
 class LoggerSerializer(serializers.HyperlinkedModelSerializer):
     log_details_url = serializers.SerializerMethodField()
+    total_hours = serializers.ReadOnlyField()
     
     class Meta:
         model = Logger
-        fields = ['url', 'log_details_url', 'id', 'first_name', 'last_name', 'log_type', 'time_log']
-        read_only_fields = ['id']
+        fields = ['url', 'log_details_url', 'id', 'first_name', 'last_name', 'log_type', 'start_time', 'end_time', 'total_hours']
+        read_only_fields = ['id', 'total_hours']
         
     def get_log_details_url(self, obj):
         request = self.context.get('request')

@@ -1,7 +1,9 @@
 .orders-container {
+    max-width: 800px;
     margin: 0 auto;
     padding: 20px;
-    max-width: 800px;
+    background-color: #f9f9f9;
+    border-radius: 10px;
 }
 
 .orders-container h1,
@@ -13,6 +15,17 @@
 .orders-container form {
     margin-bottom: 20px;
     text-align: center;
+}
+
+.orders-container input[type="text"],
+.orders-container select {
+    padding: 10px;
+    font-size: 1.25rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    width: 5px;
+    margin-right: 10px;
+    box-sizing: border-box;
 }
 
 .orders-container button {
@@ -36,6 +49,7 @@
     margin-top: 20px;
     border-collapse: collapse;
     font-size: 1.25rem;
+    text-align: left;
 }
 
 .orders-container table,
@@ -52,4 +66,35 @@
 
 .orders-container th {
     background-color: #f4f4f4;
+}
+
+.orders-container tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.orders-container a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.orders-container a:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 800px) {
+    .orders-container {
+        padding: 15px;
+    }
+
+    .orders-container input[type="text"],
+    .orders-container select {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    .orders-container table,
+    .orders-containerth,
+    .orders-container td {
+        font-size: 1rem;
+    }
 }

@@ -45,6 +45,10 @@ INSTALLED_APPS = [
     'djoser',
 ]
 
+# This sets the User model as the custom one that is set up
+# Make sure if using AUTH_USER_MODEL it is right below INSTALLED_APPS or you may get errors
+AUTH_USER_MODEL = 'restaurant.CustomUser'
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -53,6 +57,10 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend', # This is the default for session-based authentication
 ]
 
 ROOT_URLCONF = 'littlelemon.urls'
@@ -137,8 +145,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
         'rest_framework.authentication.SessionAuthentication', # Can remove when going into production
+        'rest_framework.authentication.TokenAuthentication',
     ],
     
     'DEFAULT_RENDERER_CLASSES': [
@@ -169,6 +177,7 @@ LOGIN_URL = '/accounts/login'
 # Redirects to home page after successful login
 LOGIN_REDIRECT_URL = '/'
 
+
 MESSAGE_TAGS = {
     messages.DEBUG: 'alert-info',
     messages.INFO: 'alert-info',
@@ -176,3 +185,10 @@ MESSAGE_TAGS = {
     messages.WARNING: 'alert-warning',
     messages.ERROR: 'alert-danger',
 }
+
+CSRF_COOKIE_SECURE = False  # In development mode, ensure this is False
+
+
+SESSION_COOKIE_SECURE = False  # In development mode, ensure this is False
+
+
